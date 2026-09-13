@@ -41,8 +41,9 @@ export default function App() {
     const saved = localStorage.getItem('musepush_models');
     return saved ? JSON.parse(saved) : INITIAL_MODELS;
   });
-  const [selectedModelId, setSelectedModelId] = useState<string>(models[0]?.id || 'eden');
+  const [selectedModelId, setSelectedModelId] = useState<string>(models[0]?.id || 'sophia');
   const [isAddModelOpen, setIsAddModelOpen] = useState(false);
+  const [editingModel, setEditingModel] = useState<ModelProfile | null>(null);
 
   // Platform & Language
   const [platform, setPlatform] = useState<Platform>('onlyfans');
@@ -157,17 +158,34 @@ export default function App() {
     }
   };
 
-  const handleAddNewModel = (newM: ModelProfile) => {
-    const updated = [newM, ...models];
+  const handleSaveModel = (modelToSave: ModelProfile) => {
+    const existingIndex = models.findIndex(m => m.id === modelToSave.id);
+    let updated: ModelProfile[];
+    if (existingIndex >= 0) {
+      updated = [...models];
+      updated[existingIndex] = modelToSave;
+    } else {
+      updated = [modelToSave, ...models];
+    }
     setModels(updated);
-    setSelectedModelId(newM.id);
-    if (newM.defaultLanguage) {
-      setLanguage(newM.defaultLanguage);
+    setSelectedModelId(modelToSave.id);
+    if (modelToSave.defaultLanguage) {
+      setLanguage(modelToSave.defaultLanguage);
     }
     localStorage.setItem('musepush_models', JSON.stringify(updated));
-    saveModelToCloud(newM).catch(err => {
+    saveModelToCloud(modelToSave).catch(err => {
       console.error('[Firebase] Error saving model to cloud:', err);
     });
+  };
+
+  const handleOpenAddModel = () => {
+    setEditingModel(null);
+    setIsAddModelOpen(true);
+  };
+
+  const handleOpenEditModel = (model: ModelProfile) => {
+    setEditingModel(model);
+    setIsAddModelOpen(true);
   };
 
   const handleDeleteModel = (id: string) => {
@@ -301,6 +319,7 @@ export default function App() {
                 models={models}
                 selectedModelId={selectedModelId}
                 onSelectModel={handleSelectModel}
+                onEditModel={handleOpenEditModel}
                 onDeleteModel={handleDeleteModel}
                 selectedMood={selectedMood}
                 onSelectMood={setSelectedMood}
@@ -308,7 +327,7 @@ export default function App() {
                 onChangeConfig={(updated) => setConfig(prev => ({ ...prev, ...updated }))}
                 language={language}
                 onSelectLanguage={setLanguage}
-                onOpenAddModel={() => setIsAddModelOpen(true)}
+                onOpenAddModel={handleOpenAddModel}
               />
 
               {/* High-visibility Generate Trigger */}
@@ -366,11 +385,15 @@ export default function App() {
         )}
       </main>
 
-      {/* Add Model Modal */}
+      {/* Add / Edit Model Modal */}
       <AddModelModal
         isOpen={isAddModelOpen}
-        onClose={() => setIsAddModelOpen(false)}
-        onSave={handleAddNewModel}
+        onClose={() => {
+          setIsAddModelOpen(false);
+          setEditingModel(null);
+        }}
+        onSave={handleSaveModel}
+        initialModel={editingModel}
       />
 
       {/* OpenRouter Config Modal */}

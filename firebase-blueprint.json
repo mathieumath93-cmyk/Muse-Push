@@ -12,6 +12,13 @@
         "personality": { "type": "string" },
         "realLifeOccupation": { "type": "string" },
         "homeHabits": { "type": "string" },
+        "location": { "type": "string" },
+        "objective": { "type": "string" },
+        "themes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tone": { "type": "string" },
         "favoriteEmojis": {
           "type": "array",
           "items": { "type": "string" }

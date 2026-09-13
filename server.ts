@@ -211,11 +211,15 @@ RÈGLES CAPITALES DE CONVERSATION & LOGISTIQUE MÉDIA :
 
     const userPrompt = `DÉTAILS DU PUSH À GÉNÉRER :
 - Modèle : ${modelProfile?.name || 'Créatrice'}, ${modelProfile?.age || 23} ans.
-- Métier / Vie réelle : ${modelProfile?.realLifeOccupation || 'Étudiante / passionnée de mode & shopping en ligne'}.
-- Habitudes à la maison : ${modelProfile?.homeHabits || 'Chambre, grand miroir, couette, colis de lingerie reçus'}.
+${modelProfile?.location ? `- Localisation : ${modelProfile.location}` : ''}
+- Métier / Vie réelle : ${modelProfile?.realLifeOccupation || 'Créatrice & passionnée de mode'}.
+- Habitudes à la maison : ${modelProfile?.homeHabits || 'Chambre, grand miroir, couette, moments cosy'}.
 - Personnalité : ${modelProfile?.personality || 'Sensuelle, naturelle et très complice'}.
-- Style / Tics : ${modelProfile?.customToneNotes || 'Affirmations directes, ton spontané et taquin'}.
-- Emojis favoris : ${(modelProfile?.favoriteEmojis || []).join(' ')}.
+${modelProfile?.objective ? `- Objectif relationnel prioritaire : ${modelProfile.objective}` : ''}
+${modelProfile?.themes && modelProfile.themes.length > 0 ? `- Thèmes et univers de prédilection : ${modelProfile.themes.join(', ')}` : ''}
+${modelProfile?.tone ? `- Ton de voix : ${modelProfile.tone}` : ''}
+- Style / Directives : ${modelProfile?.customToneNotes || 'Affirmations directes, ton spontané et taquin'}.
+- Emojis signatures : ${(modelProfile?.favoriteEmojis || []).join(' ')}.
 - ${platformTerminology}
 - Langue requise : ${language === 'us' ? 'ANGLAIS US (Américain)' : 'FRANÇAIS'}
 - Vibe / Circonstance : ${mood}

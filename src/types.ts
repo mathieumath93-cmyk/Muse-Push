@@ -19,8 +19,12 @@ export interface ModelProfile {
   age: number;
   avatar: string;
   personality: string;
-  realLifeOccupation?: string; // Ex: Étudiante en droit, coach fitness à domicile, passionnée de mode & shopping en ligne
-  homeHabits?: string; // Ex: Traîne en nuisette satin ou hoodie oversize, miroir chambre, thés & bougies, colis lingerie
+  realLifeOccupation?: string; // Ex: Marchand d'art, étudiante en droit, etc.
+  homeHabits?: string; // Ex: Traîne en nuisette, miroir chambre, thés & bougies
+  location?: string; // Ex: Vit dans le 34, Paris, Nice, Miami
+  objective?: string; // Ex: Faire répondre et créer une relation, booster les pourboires
+  themes?: string[]; // Ex: ["France", "Paris", "art", "café", "voyages", "cuisine"]
+  tone?: string; // Ex: Naturel, curieux, chaleureux, léger
   favoriteEmojis: string[];
   defaultLanguage: Language;
   preferredPlatforms: Platform[];

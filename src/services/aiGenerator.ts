@@ -518,8 +518,14 @@ RÈGLES CAPITALES :
 5. VARIÉTÉ : STRICTEMENT 6 VARIATIONS DIFFÉRENTES.`;
 
       const userPrompt = `Modèle : ${modelProfile?.name || 'Créatrice'}, ${modelProfile?.age || 23} ans.
-Métier/Vie réelle : ${modelProfile?.realLifeOccupation || 'Étudiante / mode'}
+${modelProfile?.location ? `Localisation : ${modelProfile.location}` : ''}
+Métier/Vie réelle : ${modelProfile?.realLifeOccupation || 'Créatrice / mode'}
 Habitudes maison : ${modelProfile?.homeHabits || 'Chambre, miroir, lit'}
+${modelProfile?.objective ? `Objectif relationnel : ${modelProfile.objective}` : ''}
+${modelProfile?.themes && modelProfile.themes.length > 0 ? `Thèmes : ${modelProfile.themes.join(', ')}` : ''}
+${modelProfile?.tone ? `Ton de voix : ${modelProfile.tone}` : ''}
+Directives de style : ${modelProfile?.customToneNotes || 'Affirmations directes, intimes et spontanées'}
+Emojis signatures : ${(modelProfile?.favoriteEmojis || []).join(' ')}
 Plateforme : ${platform}
 Langue : ${language === 'us' ? 'ANGLAIS US' : 'FRANÇAIS'}
 Vibe : ${mood} | Hot level : ${hotLevel}/5 | ${pushTypeDirective}

@@ -21,13 +21,15 @@ import {
   FileText,
   Trash2,
   Globe,
-  UserCheck
+  UserCheck,
+  Pencil
 } from 'lucide-react';
 
 interface CleanStudioConfigProps {
   models: ModelProfile[];
   selectedModelId: string;
   onSelectModel: (id: string) => void;
+  onEditModel?: (model: ModelProfile) => void;
   onDeleteModel?: (id: string) => void;
   selectedMood: MoodCategory;
   onSelectMood: (mood: MoodCategory) => void;
@@ -42,6 +44,7 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
   models,
   selectedModelId,
   onSelectModel,
+  onEditModel,
   onDeleteModel,
   selectedMood,
   onSelectMood,
@@ -265,6 +268,19 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
                     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40 border border-white/5 text-zinc-300">
                       {m.defaultLanguage === 'us' ? '🇺🇸' : '🇫🇷'}
                     </span>
+                    {onEditModel && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditModel(m);
+                        }}
+                        title="Modifier ce persona"
+                        className="opacity-60 group-hover:opacity-100 p-1 rounded-md text-zinc-400 hover:text-indigo-400 hover:bg-white/10 transition cursor-pointer"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
                     {onDeleteModel && (isCustom || models.length > 1) && (
                       <button
                         type="button"
@@ -315,54 +331,88 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
 
         {/* Selected model active summary & quick language switch */}
         {selectedModel && (
-          <div className="mt-2.5 p-3 rounded-xl bg-gradient-to-r from-rose-500/10 via-white/[0.02] to-transparent border border-rose-500/20 text-[11px] space-y-1.5">
+          <div className="mt-2.5 p-3 rounded-xl bg-gradient-to-r from-rose-500/10 via-white/[0.02] to-transparent border border-rose-500/20 text-[11px] space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-white flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   Voix active : {selectedModel.name}, {selectedModel.age} ans
+                  {selectedModel.location && (
+                    <span className="text-[10px] text-zinc-400 font-normal">({selectedModel.location})</span>
+                  )}
                 </span>
-                <span className="text-zinc-500">({selectedModel.favoriteEmojis?.join('')})</span>
+                <span className="text-zinc-400">({selectedModel.favoriteEmojis?.join('')})</span>
               </div>
 
-              {/* Instant Language Switcher for current model */}
-              {onSelectLanguage && (
-                <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-white/10 text-[10px]">
+              <div className="flex items-center gap-2">
+                {onEditModel && (
                   <button
                     type="button"
-                    onClick={() => onSelectLanguage('fr')}
-                    className={`px-1.5 py-0.5 rounded font-bold transition cursor-pointer ${
-                      language === 'fr'
-                        ? 'bg-rose-500 text-white shadow-xs'
-                        : 'text-zinc-400 hover:text-white'
-                    }`}
+                    onClick={() => onEditModel(selectedModel)}
+                    className="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white transition flex items-center gap-1 text-[10px] font-semibold cursor-pointer"
                   >
-                    🇫🇷 FR
+                    <Pencil className="w-2.5 h-2.5 text-rose-400" />
+                    <span>Modifier ce persona</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => onSelectLanguage('us')}
-                    className={`px-1.5 py-0.5 rounded font-bold transition cursor-pointer ${
-                      language === 'us'
-                        ? 'bg-indigo-500 text-white shadow-xs'
-                        : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    🇺🇸 US
-                  </button>
-                </div>
-              )}
+                )}
+
+                {/* Instant Language Switcher for current model */}
+                {onSelectLanguage && (
+                  <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-white/10 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => onSelectLanguage('fr')}
+                      className={`px-1.5 py-0.5 rounded font-bold transition cursor-pointer ${
+                        language === 'fr'
+                          ? 'bg-rose-500 text-white shadow-xs'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      🇫🇷 FR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSelectLanguage('us')}
+                      className={`px-1.5 py-0.5 rounded font-bold transition cursor-pointer ${
+                        language === 'us'
+                          ? 'bg-indigo-500 text-white shadow-xs'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      🇺🇸 US
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-zinc-300 pt-1 border-t border-white/5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-zinc-300 pt-1.5 border-t border-white/5">
               <div>
                 <span className="text-zinc-500 font-medium">Vie réelle : </span>
-                <span>{selectedModel.realLifeOccupation || 'Créatrice glamour & mode'}</span>
+                <span>{selectedModel.realLifeOccupation || 'Créatrice & passionnée de mode'}</span>
               </div>
               <div>
                 <span className="text-rose-400/90 font-medium">🏡 Cadre maison : </span>
-                <span className="text-zinc-300 truncate">{selectedModel.homeHabits || 'Chambre, miroir, colis lingerie'}</span>
+                <span className="text-zinc-300 truncate">{selectedModel.homeHabits || 'Chambre, miroir, lit et moments cosy'}</span>
               </div>
+              {selectedModel.objective && (
+                <div className="sm:col-span-2">
+                  <span className="text-emerald-400/90 font-medium">🎯 Objectif : </span>
+                  <span className="text-zinc-300">{selectedModel.objective}</span>
+                </div>
+              )}
+              {selectedModel.tone && (
+                <div>
+                  <span className="text-amber-400/90 font-medium">🎙️ Ton : </span>
+                  <span className="text-zinc-300">{selectedModel.tone}</span>
+                </div>
+              )}
+              {selectedModel.themes && selectedModel.themes.length > 0 && (
+                <div>
+                  <span className="text-purple-400/90 font-medium">🎨 Thèmes : </span>
+                  <span className="text-zinc-300 truncate">{selectedModel.themes.join(', ')}</span>
+                </div>
+              )}
             </div>
           </div>
         )}
