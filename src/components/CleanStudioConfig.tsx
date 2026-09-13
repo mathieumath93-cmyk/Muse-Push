@@ -18,18 +18,23 @@ import {
   Lock,
   MessageCircle,
   AlignLeft,
-  FileText
+  FileText,
+  Trash2,
+  Globe,
+  UserCheck
 } from 'lucide-react';
 
 interface CleanStudioConfigProps {
   models: ModelProfile[];
   selectedModelId: string;
   onSelectModel: (id: string) => void;
+  onDeleteModel?: (id: string) => void;
   selectedMood: MoodCategory;
   onSelectMood: (mood: MoodCategory) => void;
   config: PushRequestConfig;
   onChangeConfig: (updated: Partial<PushRequestConfig>) => void;
   language: 'fr' | 'us';
+  onSelectLanguage?: (lang: 'fr' | 'us') => void;
   onOpenAddModel: () => void;
 }
 
@@ -37,11 +42,13 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
   models,
   selectedModelId,
   onSelectModel,
+  onDeleteModel,
   selectedMood,
   onSelectMood,
   config,
   onChangeConfig,
   language,
+  onSelectLanguage,
   onOpenAddModel
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -203,65 +210,159 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
         </div>
       </div>
 
-      {/* 3. Model chips bar */}
+      {/* 3. Modèle & Voix - Visible Card Grid & Instant Switcher */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+        <div className="flex items-center justify-between mb-2.5">
+          <label className="text-xs font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+            <UserCheck className="w-3.5 h-3.5 text-rose-400" />
             <span>3. Modèle & Voix</span>
+            <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
+              {models.length} {models.length > 1 ? 'profils' : 'profil'}
+            </span>
           </label>
           <button
             type="button"
             onClick={onOpenAddModel}
-            className="text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 transition cursor-pointer"
+            className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 transition px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 cursor-pointer"
           >
-            <Plus className="w-3 h-3" /> Nouveau profil
+            <Plus className="w-3 h-3" /> Ajouter un modèle
           </button>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {/* Responsive Grid: All models are directly visible and easy to switch */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {models.map(m => {
             const isSel = m.id === selectedModelId;
+            const isCustom = m.id.startsWith('model-');
             return (
-              <button
+              <div
                 key={m.id}
-                type="button"
                 onClick={() => onSelectModel(m.id)}
-                className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border text-left transition shrink-0 ${
+                className={`group relative p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                   isSel
-                    ? 'bg-rose-500/15 border-rose-500/60 shadow-sm ring-1 ring-rose-500/40 text-white'
-                    : 'bg-white/[0.03] border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.06]'
+                    ? 'bg-rose-500/15 border-rose-500/70 shadow-lg shadow-rose-500/10 ring-2 ring-rose-500/30'
+                    : 'bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.05] text-zinc-400'
                 }`}
               >
-                <img
-                  src={m.avatar}
-                  alt={m.name}
-                  className="w-7 h-7 rounded-lg object-cover ring-1 ring-white/10"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="leading-tight">
-                  <div className="text-xs font-bold flex items-center gap-1">
-                    {m.name}
-                    {isSel && <Check className="w-3 h-3 text-rose-400" />}
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="relative">
+                    <img
+                      src={m.avatar}
+                      alt={m.name}
+                      className={`w-9 h-9 rounded-xl object-cover ring-1 ${
+                        isSel ? 'ring-rose-500 shadow-md' : 'ring-white/10'
+                      }`}
+                      referrerPolicy="no-referrer"
+                    />
+                    {isSel && (
+                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[8px] font-bold shadow">
+                        ✓
+                      </span>
+                    )}
                   </div>
-                  <div className="text-[10px] text-zinc-400 font-mono">
-                    {m.favoriteEmojis.slice(0, 2).join('')} • {m.age} ans
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40 border border-white/5 text-zinc-300">
+                      {m.defaultLanguage === 'us' ? '🇺🇸' : '🇫🇷'}
+                    </span>
+                    {onDeleteModel && (isCustom || models.length > 1) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Supprimer le profil ${m.name} ?`)) {
+                            onDeleteModel(m.id);
+                          }
+                        }}
+                        title="Supprimer ce profil"
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-white/10 transition cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
-              </button>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-bold truncate ${isSel ? 'text-white' : 'text-zinc-200'}`}>
+                      {m.name}
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      {m.age} ans
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-zinc-400 truncate mt-0.5">
+                    {m.favoriteEmojis?.slice(0, 3).join(' ')} • {m.realLifeOccupation?.split(' ')[0] || 'Modèle'}
+                  </div>
+                </div>
+              </div>
             );
           })}
+
+          {/* Quick "+ Ajouter" card in grid */}
+          <button
+            type="button"
+            onClick={onOpenAddModel}
+            className="p-2.5 rounded-xl border border-dashed border-white/15 bg-white/[0.01] hover:bg-rose-500/5 hover:border-rose-500/40 text-zinc-400 hover:text-rose-300 transition flex flex-col items-center justify-center gap-1 text-center min-h-[72px] cursor-pointer"
+          >
+            <div className="p-1 rounded-lg bg-white/5 text-zinc-400 group-hover:text-rose-400">
+              <Plus className="w-4 h-4" />
+            </div>
+            <span className="text-[11px] font-medium">+ Autre Modèle</span>
+          </button>
         </div>
 
-        {/* Selected model lifestyle & home context info */}
+        {/* Selected model active summary & quick language switch */}
         {selectedModel && (
-          <div className="mt-2 p-2.5 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-500 font-medium shrink-0">Vie réelle :</span>
-              <span className="text-zinc-200 font-semibold">{selectedModel.realLifeOccupation || 'Créatrice glamour & mode'}</span>
+          <div className="mt-2.5 p-3 rounded-xl bg-gradient-to-r from-rose-500/10 via-white/[0.02] to-transparent border border-rose-500/20 text-[11px] space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Voix active : {selectedModel.name}, {selectedModel.age} ans
+                </span>
+                <span className="text-zinc-500">({selectedModel.favoriteEmojis?.join('')})</span>
+              </div>
+
+              {/* Instant Language Switcher for current model */}
+              {onSelectLanguage && (
+                <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-white/10 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => onSelectLanguage('fr')}
+                    className={`px-1.5 py-0.5 rounded font-bold transition cursor-pointer ${
+                      language === 'fr'
+                        ? 'bg-rose-500 text-white shadow-xs'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    🇫🇷 FR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSelectLanguage('us')}
+                    className={`px-1.5 py-0.5 rounded font-bold transition cursor-pointer ${
+                      language === 'us'
+                        ? 'bg-indigo-500 text-white shadow-xs'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    🇺🇸 US
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2 text-zinc-400">
-              <span className="text-rose-400/80 font-medium shrink-0">🏡 Cadre maison :</span>
-              <span className="text-zinc-300 truncate max-w-xs">{selectedModel.homeHabits || 'Chambre, miroir, colis lingerie'}</span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-zinc-300 pt-1 border-t border-white/5">
+              <div>
+                <span className="text-zinc-500 font-medium">Vie réelle : </span>
+                <span>{selectedModel.realLifeOccupation || 'Créatrice glamour & mode'}</span>
+              </div>
+              <div>
+                <span className="text-rose-400/90 font-medium">🏡 Cadre maison : </span>
+                <span className="text-zinc-300 truncate">{selectedModel.homeHabits || 'Chambre, miroir, colis lingerie'}</span>
+              </div>
             </div>
           </div>
         )}

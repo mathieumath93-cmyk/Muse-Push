@@ -95,10 +95,35 @@ export default function App() {
 
   const selectedModel = models.find(m => m.id === selectedModelId) || models[0];
 
+  const handleSelectModel = (id: string) => {
+    setSelectedModelId(id);
+    const target = models.find(m => m.id === id);
+    if (target?.defaultLanguage) {
+      setLanguage(target.defaultLanguage);
+    }
+  };
+
   const handleAddNewModel = (newM: ModelProfile) => {
     const updated = [newM, ...models];
     setModels(updated);
     setSelectedModelId(newM.id);
+    if (newM.defaultLanguage) {
+      setLanguage(newM.defaultLanguage);
+    }
+    localStorage.setItem('musepush_models', JSON.stringify(updated));
+  };
+
+  const handleDeleteModel = (id: string) => {
+    if (models.length <= 1) return;
+    const updated = models.filter(m => m.id !== id);
+    setModels(updated);
+    if (selectedModelId === id) {
+      const next = updated[0];
+      setSelectedModelId(next.id);
+      if (next?.defaultLanguage) {
+        setLanguage(next.defaultLanguage);
+      }
+    }
     localStorage.setItem('musepush_models', JSON.stringify(updated));
   };
 
@@ -205,12 +230,14 @@ export default function App() {
               <CleanStudioConfig
                 models={models}
                 selectedModelId={selectedModelId}
-                onSelectModel={setSelectedModelId}
+                onSelectModel={handleSelectModel}
+                onDeleteModel={handleDeleteModel}
                 selectedMood={selectedMood}
                 onSelectMood={setSelectedMood}
                 config={config}
                 onChangeConfig={(updated) => setConfig(prev => ({ ...prev, ...updated }))}
                 language={language}
+                onSelectLanguage={setLanguage}
                 onOpenAddModel={() => setIsAddModelOpen(true)}
               />
 
@@ -230,7 +257,7 @@ export default function App() {
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4 text-rose-200" />
-                      <span>Générer les 3 Pushs (A/B Testing)</span>
+                      <span>Générer les 6 Pushs (A/B Testing)</span>
                     </>
                   )}
                 </button>
