@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "models": {
+      "title": "ModelProfile",
+      "description": "Creator profiles including real life home context and voice tone",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "age": { "type": "number" },
+        "avatar": { "type": "string" },
+        "personality": { "type": "string" },
+        "realLifeOccupation": { "type": "string" },
+        "homeHabits": { "type": "string" },
+        "favoriteEmojis": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "defaultLanguage": { "type": "string" },
+        "preferredPlatforms": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "customToneNotes": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["name", "age", "avatar"]
+    },
+    "training_examples": {
+      "title": "WinningExample",
+      "description": "High-performing copywriting push examples for AI few-shot training",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "text": { "type": "string" },
+        "mood": { "type": "string" },
+        "platform": { "type": "string" },
+        "language": { "type": "string" },
+        "whyItWorks": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["title", "text"]
+    },
+    "agency_settings": {
+      "title": "AgencyPlaybook",
+      "description": "Global agency guidelines and playbook rules",
+      "type": "object",
+      "properties": {
+        "rules": { "type": "string" },
+        "updatedAt": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "/models/{modelId}": {
+      "schema": "models",
+      "description": "All shared model profiles accessible to team and viewers"
+    },
+    "/training_examples/{exampleId}": {
+      "schema": "training_examples",
+      "description": "Training examples library"
+    },
+    "/agency_settings/{settingId}": {
+      "schema": "agency_settings",
+      "description": "Agency playbook rules"
+    }
+  }
+}

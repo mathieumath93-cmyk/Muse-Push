@@ -9,6 +9,16 @@ import { AddModelModal } from './components/AddModelModal';
 import { INITIAL_MODELS, DEFAULT_WINNING_EXAMPLES } from './data';
 import { executePushGeneration } from './services/aiGenerator';
 import { 
+  subscribeModels, 
+  saveModelToCloud, 
+  deleteModelFromCloud,
+  subscribeTrainingExamples,
+  saveTrainingExampleToCloud,
+  deleteTrainingExampleFromCloud,
+  subscribePlaybookRules,
+  savePlaybookRulesToCloud
+} from './lib/firebase';
+import { 
   Platform, 
   Language, 
   MoodCategory, 
@@ -22,6 +32,9 @@ import { Sparkles, RefreshCw, Trophy, Zap, AlertCircle } from 'lucide-react';
 export default function App() {
   // Navigation tabs: 'generator' or 'training'
   const [activeTab, setActiveTab] = useState<'generator' | 'training'>('generator');
+
+  // Cloud sync status
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
 
   // Models management
   const [models, setModels] = useState<ModelProfile[]>(() => {
@@ -58,6 +71,47 @@ export default function App() {
 - Zéro vocabulaire commercial ("promotion", "offre spéciale", "abonne-toi").
 - Cadre 100% maison/appartement (miroir de chambre, lit, couette, douche, unboxing lingerie reçue).`;
   });
+
+  // Real-time Firebase Cloud Synchronization
+  useEffect(() => {
+    let unsubModels: (() => void) | undefined;
+    let unsubTraining: (() => void) | undefined;
+    let unsubPlaybook: (() => void) | undefined;
+
+    try {
+      unsubModels = subscribeModels((cloudModels) => {
+        if (cloudModels && cloudModels.length > 0) {
+          setModels(cloudModels);
+          localStorage.setItem('musepush_models', JSON.stringify(cloudModels));
+          setIsCloudSynced(true);
+        }
+      });
+
+      unsubTraining = subscribeTrainingExamples((cloudExamples) => {
+        if (cloudExamples && cloudExamples.length > 0) {
+          setTrainingExamples(cloudExamples);
+          localStorage.setItem('musepush_training_examples', JSON.stringify(cloudExamples));
+          setIsCloudSynced(true);
+        }
+      });
+
+      unsubPlaybook = subscribePlaybookRules((cloudRules) => {
+        if (cloudRules) {
+          setAgencyPlaybookRules(cloudRules);
+          localStorage.setItem('musepush_playbook_rules', cloudRules);
+          setIsCloudSynced(true);
+        }
+      });
+    } catch (e) {
+      console.warn('[Firebase] subscription error, local storage fallback active:', e);
+    }
+
+    return () => {
+      if (unsubModels) unsubModels();
+      if (unsubTraining) unsubTraining();
+      if (unsubPlaybook) unsubPlaybook();
+    };
+  }, []);
 
   // Push request config
   const [config, setConfig] = useState<PushRequestConfig>({
@@ -111,6 +165,9 @@ export default function App() {
       setLanguage(newM.defaultLanguage);
     }
     localStorage.setItem('musepush_models', JSON.stringify(updated));
+    saveModelToCloud(newM).catch(err => {
+      console.error('[Firebase] Error saving model to cloud:', err);
+    });
   };
 
   const handleDeleteModel = (id: string) => {
@@ -125,23 +182,35 @@ export default function App() {
       }
     }
     localStorage.setItem('musepush_models', JSON.stringify(updated));
+    deleteModelFromCloud(id).catch(err => {
+      console.error('[Firebase] Error deleting model from cloud:', err);
+    });
   };
 
   const handleAddTrainingExample = (item: WinningExample) => {
     const updated = [item, ...trainingExamples];
     setTrainingExamples(updated);
     localStorage.setItem('musepush_training_examples', JSON.stringify(updated));
+    saveTrainingExampleToCloud(item).catch(err => {
+      console.error('[Firebase] Error saving training example to cloud:', err);
+    });
   };
 
   const handleDeleteTrainingExample = (id: string) => {
     const updated = trainingExamples.filter(x => x.id !== id);
     setTrainingExamples(updated);
     localStorage.setItem('musepush_training_examples', JSON.stringify(updated));
+    deleteTrainingExampleFromCloud(id).catch(err => {
+      console.error('[Firebase] Error deleting training example from cloud:', err);
+    });
   };
 
   const handleChangePlaybookRules = (rules: string) => {
     setAgencyPlaybookRules(rules);
     localStorage.setItem('musepush_playbook_rules', rules);
+    savePlaybookRulesToCloud(rules).catch(err => {
+      console.error('[Firebase] Error saving playbook rules to cloud:', err);
+    });
   };
 
   const handleSaveApiKey = (key: string) => {
@@ -207,6 +276,7 @@ export default function App() {
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         trainingCount={trainingExamples.length}
+        isCloudSynced={isCloudSynced}
       />
 
       {/* Main Content Workspace */}

@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Model profiles shared across team/viewers
+    match /models/{modelId} {
+      allow read, write: if true;
+    }
+
+    // High converting training examples
+    match /training_examples/{exampleId} {
+      allow read, write: if true;
+    }
+
+    // Global agency playbook settings
+    match /agency_settings/{settingId} {
+      allow read, write: if true;
+    }
+  }
+}

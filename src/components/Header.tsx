@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, Zap, Sparkles, Trophy, Sliders } from 'lucide-react';
+import { Bot, Zap, Sparkles, Trophy, Sliders, Cloud } from 'lucide-react';
 import { Platform, Language } from '../types';
 
 interface HeaderProps {
@@ -13,6 +13,7 @@ interface HeaderProps {
   activeTab: 'generator' | 'training';
   onSelectTab: (tab: 'generator' | 'training') => void;
   trainingCount: number;
+  isCloudSynced?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,7 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   selectedModel,
   activeTab,
   onSelectTab,
-  trainingCount
+  trainingCount,
+  isCloudSynced = false
 }) => {
   return (
     <header className="border-b border-white/10 bg-[#0b0b10]/95 backdrop-blur-xl sticky top-0 z-30 px-4 sm:px-8 py-3 transition-all">
@@ -134,6 +136,22 @@ export const Header: React.FC<HeaderProps> = ({
               <span>🇺🇸</span>
               <span className="hidden sm:inline">US</span>
             </button>
+          </div>
+
+          {/* Firebase Cloud Sync Status */}
+          <div 
+            title={isCloudSynced ? "Modèles & Playbook synchronisés en direct avec Firebase" : "Connexion au Cloud..."}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] font-semibold transition ${
+              isCloudSynced 
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
+                : 'bg-white/5 border-white/10 text-zinc-400'
+            }`}
+          >
+            <Cloud className={`w-3.5 h-3.5 ${isCloudSynced ? 'text-emerald-400' : 'text-zinc-500'}`} />
+            <span className="hidden sm:inline">
+              {isCloudSynced ? 'Cloud Synced' : 'Sync...'}
+            </span>
+            <span className={`w-1.5 h-1.5 rounded-full ${isCloudSynced ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
           </div>
 
           {/* OpenRouter Config Button */}
