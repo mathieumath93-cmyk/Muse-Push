@@ -1,0 +1,6 @@
+{
+  "name": "MusePush - AI Mass Messaging Studio",
+  "description": "Studio IA de mass messages authentiques pour modèles MYM & OnlyFans (FR/US), calibré selon le mood, fuseaux horaires et OpenRouter.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

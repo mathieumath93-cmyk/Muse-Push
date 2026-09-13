@@ -1,0 +1,95 @@
+export type Platform = 'onlyfans' | 'mym';
+export type Language = 'fr' | 'us';
+export type PushType = 'paid_ppv' | 'free_retention';
+export type SentenceLength = 'one_line' | 'ultra_short' | 'short' | 'medium';
+
+export type MoodCategory = 
+  | 'gfe'             // Girlfriend Experience, tendre, intime, complice
+  | 'hot'             // Sexy, chaud, teasing explicite ou torride
+  | 'morning'         // Réveil, lit, étirements, café, pyjama
+  | 'shower_bath'     // Sortie de douche, bain moussant, serviette
+  | 'late_night'      // Nuit tardive, insomnie, pensées chaudes
+  | 'exclusive_vip'   // VIP restreint, contenu rare, secret
+  | 'interactive'     // Question, jeu, choix de tenue/position
+  | 'flash_sale';     // Offre flash chrono, promo exclusive
+
+export interface ModelProfile {
+  id: string;
+  name: string;
+  age: number;
+  avatar: string;
+  personality: string;
+  realLifeOccupation?: string; // Ex: Étudiante en droit, coach fitness à domicile, passionnée de mode & shopping en ligne
+  homeHabits?: string; // Ex: Traîne en nuisette satin ou hoodie oversize, miroir chambre, thés & bougies, colis lingerie
+  favoriteEmojis: string[];
+  defaultLanguage: Language;
+  preferredPlatforms: Platform[];
+  customToneNotes: string;
+}
+
+// Few-Shot Training Example (Winning push that generated high unlock / tips)
+export interface WinningExample {
+  id: string;
+  title: string;
+  platform: Platform;
+  language: Language;
+  mood: MoodCategory;
+  text: string;
+  revenueGenerated?: string; // ex: "1,450 $"
+  openRate?: string; // ex: "92%"
+  notes?: string; // ex: "L'accroche sur le miroir embué a fait x3 sur les déblocages"
+  isCustom?: boolean;
+}
+
+export interface PushRequestConfig {
+  modelId: string;
+  platform: Platform;
+  language: Language;
+  pushType: PushType; // 'paid_ppv' (PPV verrouillé) vs 'free_retention' (Message direct offert/relationnel)
+  sentenceCount: SentenceLength; // 'ultra_short' (1-2 phrases), 'short' (2-3 phrases), 'medium' (3-4 phrases)
+  mood: MoodCategory;
+  mediaType: 'photo_set' | 'video_clip' | 'full_tape' | 'audio_voice' | 'exclusive_bundle' | 'none';
+  priceSuggestion?: number; // in $ or €
+  mediaContext: string; // Ex: "Petite robe satin qui glisse", "Sous la douche en train de me savonner", etc.
+  callToAction: 'unlock_ppv' | 'tip_reply' | 'poll_answer' | 'dm_talk';
+  targetAudience: 'all_subs' | 'renew_on' | 'vip_spenders' | 'inactive_subs';
+  hotLevel: number; // 1 to 5
+  timeContext: {
+    selectedTzZone: 'FR_CET' | 'US_EST' | 'US_CST' | 'US_PST';
+    customHour?: number;
+    customMinute?: number;
+    useCurrentTime: boolean;
+  };
+  openRouterConfig?: {
+    apiKey?: string;
+    model?: string;
+    temperature?: number;
+  };
+  // Few-shot training context passed to LLM
+  trainingExamples?: WinningExample[];
+  agencyPlaybookRules?: string; // Rules like "Never say subscribe", "Always use 2 lowercase words at the start", etc.
+}
+
+export interface GeneratedVariation {
+  id: string;
+  angle: 'direct' | 'mysterious' | 'intimate_gfe' | 'tease_playful';
+  angleLabel: string;
+  message: string;
+  estimatedOpenRate: string;
+  suggestedPrice?: string;
+  mediaNotice?: string;
+  timeContextNote: string;
+}
+
+export interface GenerationResult {
+  success: boolean;
+  modelUsed: string;
+  source: 'openrouter' | 'fallback_engine';
+  variations: GeneratedVariation[];
+  recommendations: {
+    bestSendTimeFanTz: string;
+    currentFanLocalTime: string;
+    pricingTip: string;
+    safetyAudit: string;
+  };
+}
