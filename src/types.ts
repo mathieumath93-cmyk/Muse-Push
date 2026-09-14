@@ -12,7 +12,11 @@ export type MoodCategory =
   | 'late_night'      // Nuit tardive, insomnie, pensées chaudes
   | 'exclusive_vip'   // VIP restreint, contenu rare, secret
   | 'interactive'     // Question, jeu, choix de tenue/position
-  | 'flash_sale';     // Offre flash chrono, promo exclusive
+  | 'flash_sale'      // Offre flash chrono, promo exclusive
+  | 'positions_hot'   // Questions positions intimes, cambrure sur le lit, angles torrides
+  | 'body_explicit'   // Anatomie intime, seins, fesses, décolleté, courbes sensuelles & directes
+  | 'fantasies_taboo' // Fantasmes secrets, pensées inavouées, scénarios interdits
+  | 'dirty_talk';     // Provocations sans filtre, excitation brute, langage cru & complice
 
 export interface ModelProfile {
   id: string;

@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { generateDynamicPushVariations } from './src/services/dynamicPushEngine';
 import { getResolvedTime } from './src/utils/timeZoneHelper';
+import { MOODS, getMoodDetail } from './src/data';
 
 dotenv.config();
 
@@ -208,8 +209,41 @@ Utilise des tournures familières, spontanées (ex: "coucou toi", "j’ai pensé
    - INTERDICTION FORMELLE DE PARLER DE SOIRÉE OU DE NUIT EN PLEIN JOUR : S'il est 13h / midi / après-midi, il fait PLEIN JOUR ! Interdiction d'évoquer "ce soir", "cette nuit", "bonne nuit", "insomnie", "tu dors", "dans le noir" ou "lampe de chevet".
    - AMBIANCE OBLIGATOIRE : ${resolvedTime.contextualAtmosphereFr}`;
 
+    const moodObj = getMoodDetail(mood);
+    const moodName = moodObj ? (language === 'us' ? moodObj.nameEn : moodObj.name) : mood;
+    const moodGuidance = moodObj ? (language === 'us' ? moodObj.promptGuidanceUs : moodObj.promptGuidanceFr) : '';
+
+    let moodSpecificInstructions = '';
+    if (mood === 'positions_hot') {
+      moodSpecificInstructions = language === 'us'
+        ? `\n- SPECIFICITY POSITIONS & ANGLES (HIGH PRIORITY): Every proposition MUST center on favorite intimate positions, cambrures, arched angles on bed/sheets, riding, or provocative questions about what position drives him wild. Make him picture it immediately.`
+        : `\n- SPÉCIFICITÉ POSITIONS & ANGLES HOT (PRIORITAIRE ABSOLUE) : Les propositions DOIVENT obligatoirement tourner autour des positions préférées, de la cambrure sur le lit, d'être au-dessus ou prise par surprise, ou de questions/dilemmes très chauds sur ses positions préférées. Force-le à s'imaginer la scène immédiatement.`;
+    } else if (mood === 'body_explicit') {
+      moodSpecificInstructions = language === 'us'
+        ? `\n- SPECIFICITY BODY & EXPLICIT CURVES (HIGH PRIORITY): Unfiltered focus on body curves (chest/breasts, sheer transparent fabric, arch, waist, hips, wet skin). Raw, confident, highly sensual and completely unapologetic.`
+        : `\n- SPÉCIFICITÉ CORPS & DÉTAILS SANS FILTRE (PRIORITAIRE ABSOLUE) : Focalise les propositions sans complexe sur l'anatomie et les détails sensuels du corps (poitrine/seins lourds qui débordent, cambrure, fesses/cul moulé, dentelle ultra-transparente, peau chaude). Ton très audacieux, direct et décomplexé.`;
+    } else if (mood === 'fantasies_taboo') {
+      moodSpecificInstructions = language === 'us'
+        ? `\n- SPECIFICITY FANTASIES & FORBIDDEN (HIGH PRIORITY): Explore secret fantasies, unspoken desires, taboo thoughts, and bold questions asking what his wildest forbidden fantasy is.`
+        : `\n- SPÉCIFICITÉ FANTASMES & INTERDITS (PRIORITAIRE ABSOLUE) : Explore les désirs inavoués, les pensées interdites, les scénarios secrets sans tabou, et pose des questions directes sur ses fantasmes les plus inavouables.`;
+    } else if (mood === 'dirty_talk') {
+      moodSpecificInstructions = language === 'us'
+        ? `\n- SPECIFICITY DIRTY TALK & RAW VIBE (HIGH PRIORITY): Direct, intimate, fiery dirty talk. Tease ruthlessly, whisper raw sensations, and light a fire under him with one unapologetic sentence.`
+        : `\n- SPÉCIFICITÉ DIRTY TALK & PROVOCATION (PRIORITAIRE ABSOLUE) : Adopte un langage très direct, complice et brûlant. Provocations sensuelles brutes, excitation partagée, chuchotement sans filtre qui fait grimper la température en une phrase.`;
+    } else if (mood === 'shower_bath') {
+      moodSpecificInstructions = language === 'us'
+        ? `\n- SPECIFICITY SHOWER & WET SKIN: Water droplets on skin, steamy bathroom mirror, towel slipping off, fresh wet hair.`
+        : `\n- SPÉCIFICITÉ DOUCHE & BAIN : Gouttes d'eau sur la peau, miroir embué, serviette qui glisse toute seule, sortie de bain sensuelle.`;
+    }
+
     const systemPrompt = `Tu es une experte d'élite en copywriting et ghostwriting pour créatrices glamour & charme sur ${platform === 'onlyfans' ? 'OnlyFans' : 'MYM'}.
 Ton rôle est de générer des MASS MESSAGES ultra-performants qui relancent immédiatement les discussions et l'intérêt des fans.
+
+RÈGLE CAPITALE DE LA VIBE & CIRCONSTANCE :
+- VIBE SÉLECTIONNÉE : "${moodName}" (${moodObj?.badge || 'Thématique active'})
+- CONSIGNE DE CE MOOD : ${moodGuidance}
+${moodSpecificInstructions}
+- TU DOIS OBLIGATOIREMENT imprégner les propositions de cette thématique ! Chaque proposition doit respirer cette vibe avec sa propre approche créative.
 
 RÈGLES CAPITALES DE CONVERSATION & LOGISTIQUE MÉDIA :
 1. LE MESSAGE EST DÉJÀ DANS LA MESSAGERIE PRIVÉE (DM) DU FAN :
@@ -264,7 +298,9 @@ ${modelProfile?.tone ? `- Ton de voix : ${modelProfile.tone}` : ''}
 - Emojis signatures : ${(modelProfile?.favoriteEmojis || []).join(' ')}.
 - ${platformTerminology}
 - Langue requise : ${language === 'us' ? 'ANGLAIS US (Américain)' : 'FRANÇAIS'}
-- Vibe / Circonstance : ${mood}
+- VIBE & CIRCONSTANCE SÉLECTIONNÉE (PRIORITAIRE) : "${moodName}" (${moodObj?.badge || 'Thématique'})
+  * Consigne psychologique de la vibe : ${moodGuidance}
+${moodSpecificInstructions ? `  * DIRECTIVE IMPÉRATIVE DE LA VIBE : ${moodSpecificInstructions.trim()}` : ''}
 - Niveau d'audace / Hot level (1-5) : ${hotLevel}/5
 - ${pushTypeDirective}
 - ${lengthDirective}

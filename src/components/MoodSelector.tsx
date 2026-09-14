@@ -11,7 +11,8 @@ import {
   Sparkles, 
   Zap,
   CheckCircle,
-  HelpCircle
+  HelpCircle,
+  Compass
 } from 'lucide-react';
 
 interface MoodSelectorProps {
@@ -35,9 +36,12 @@ export const MoodSelector: React.FC<MoodSelectorProps> = ({
       case 'Crown': return <Crown className="w-4 h-4 text-purple-400" />;
       case 'Sparkles': return <Sparkles className="w-4 h-4 text-emerald-400" />;
       case 'Zap': return <Zap className="w-4 h-4 text-yellow-400" />;
+      case 'Compass': return <Compass className="w-4 h-4 text-rose-400" />;
       default: return <Sparkles className="w-4 h-4" />;
     }
   };
+
+  const activeMoodObj = MOODS.find(m => m.id === selectedMood);
 
   return (
     <div className="mb-6">
@@ -49,11 +53,11 @@ export const MoodSelector: React.FC<MoodSelectorProps> = ({
           </h2>
         </div>
         <span className="text-[11px] text-zinc-400">
-          Chaque mood déclenche un copywriting psychologique distinct
+          Chaque mood oriente directement le copywriting et le déclencheur
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
         {MOODS.map((item) => {
           const isSelected = selectedMood === item.id;
           return (
@@ -94,6 +98,23 @@ export const MoodSelector: React.FC<MoodSelectorProps> = ({
           );
         })}
       </div>
+
+      {activeMoodObj && (
+        <div className="mt-2.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs text-amber-200/90">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-amber-400">
+              Vibe active : {language === 'us' ? activeMoodObj.nameEn : activeMoodObj.name}
+            </span>
+            <span className="hidden sm:inline text-zinc-400">•</span>
+            <span className="hidden sm:inline text-zinc-300 text-[11px]">
+              {language === 'us' ? activeMoodObj.promptGuidanceUs : activeMoodObj.promptGuidanceFr}
+            </span>
+          </div>
+          <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300">
+            {activeMoodObj.badge}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

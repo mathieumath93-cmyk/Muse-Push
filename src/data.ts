@@ -219,8 +219,56 @@ export const MOODS: MoodDetail[] = [
     recommendedHours: 'Créneau court (2h à 4h de validité)',
     promptGuidanceFr: 'Prix cassé pour les premières minutes, sentiment d urgence amical, opportunité unique.',
     promptGuidanceUs: 'Urgent price drop for the next few unlocked, spontaneous excitement, don’t miss it.'
+  },
+  {
+    id: 'positions_hot',
+    name: 'Positions & Angles Hot',
+    nameEn: 'Positions & Angles',
+    badge: 'Très Torride',
+    iconName: 'Compass',
+    accentColor: 'rose',
+    recommendedHours: '21h00 - 02h00',
+    promptGuidanceFr: 'Questions directes et audacieuses sur les positions préférées (cambrée sur le lit, à genoux, au-dessus, prise par surprise), dilemmes piquants pour forcer le fan à s\'imaginer avec elle et à réagir immédiatement.',
+    promptGuidanceUs: 'Bold and teasing questions/dilemmas on favorite intimate positions (arched on the bed, riding, taken from behind), making the fan picture it and respond instantly.'
+  },
+  {
+    id: 'body_explicit',
+    name: 'Corps & Détails Sans Filtre',
+    nameEn: 'Body & Explicit Curves',
+    badge: 'Ultra Direct',
+    iconName: 'Flame',
+    accentColor: 'amber',
+    recommendedHours: '20h00 - 03h00',
+    promptGuidanceFr: 'Focalisation assumée sur les détails du corps (poitrine/seins lourds qui débordent, cambrure, fesses/cul moulé, dentelle transparente, lingerie trempée). Ton ultra-sensuel, décomplexé et sans fausse pudeur.',
+    promptGuidanceUs: 'Unfiltered, sensual focus on body details (chest, sheer lace, arch, waist, hips, wet skin). Raw, confident, totally unapologetic.'
+  },
+  {
+    id: 'fantasies_taboo',
+    name: 'Fantasmes & Interdits',
+    nameEn: 'Fantasies & Forbidden',
+    badge: 'Secret & Tabou',
+    iconName: 'Sparkles',
+    accentColor: 'purple',
+    recommendedHours: '22h00 - 03h30',
+    promptGuidanceFr: 'Confidences intimes sur des désirs inavoués, scénarios tabous, pensées interdites et questions directes sur les délires les plus inavouables du fan.',
+    promptGuidanceUs: 'Secret confessions about unspoken desires, taboo scenarios, forbidden thoughts, and direct provocative questions about his deepest fantasies.'
+  },
+  {
+    id: 'dirty_talk',
+    name: 'Dirty Talk & Provocation',
+    nameEn: 'Dirty Talk & Raw Vibe',
+    badge: 'Piquant & Brut',
+    iconName: 'Zap',
+    accentColor: 'rose',
+    recommendedHours: '22h00 - 04h00',
+    promptGuidanceFr: 'Langage direct, complice et cru sans vulgarité gratuite. Provocations sensuelles, excitation partagée, chuchotements brûlants qui font monter la température en une phrase.',
+    promptGuidanceUs: 'Raw, playful dirty talk and unapologetic sensual provocations that push his buttons and demand immediate private response.'
   }
 ];
+
+export function getMoodDetail(mood: MoodCategory): MoodDetail | undefined {
+  return MOODS.find(m => m.id === mood);
+}
 
 export const TIME_ZONES = [
   { id: 'FR_CET', label: 'France / Europe (Paris CET)', tz: 'Europe/Paris', flag: '🇫🇷', offsetHours: 1 },

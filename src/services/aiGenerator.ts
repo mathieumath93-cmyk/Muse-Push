@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { generateDynamicPushVariations } from './dynamicPushEngine';
 import { getResolvedTime, TzZone } from '../utils/timeZoneHelper';
+import { getMoodDetail } from '../data';
 
 export interface GeneratePushParams {
   modelProfile: ModelProfile;
@@ -573,8 +574,41 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
    - HEURE RÉELLE : Il est ${resolvedTime.timeString} (${resolvedTime.periodLabelFr}).
    - MOTS INTERDITS : ${resolvedTime.forbiddenWordsFr.join(', ')}. S'il fait jour (13h/midi/après-midi), INTERDICTION d'évoquer la nuit, "ce soir", "cette nuit", "insomnie" ou "tu dors" !`;
 
+      const moodObj = getMoodDetail(mood);
+      const moodName = moodObj ? (language === 'us' ? moodObj.nameEn : moodObj.name) : mood;
+      const moodGuidance = moodObj ? (language === 'us' ? moodObj.promptGuidanceUs : moodObj.promptGuidanceFr) : '';
+
+      let moodSpecificInstructions = '';
+      if (mood === 'positions_hot') {
+        moodSpecificInstructions = language === 'us'
+          ? `\n- SPECIFICITY POSITIONS & ANGLES: Every proposition MUST center on favorite positions, cambrures, arched angles on bed, or provocative questions about his favorite position.`
+          : `\n- SPÉCIFICITÉ POSITIONS & ANGLES HOT (PRIORITAIRE) : Les propositions DOIVENT obligatoirement tourner autour des positions préférées, de la cambrure sur le lit, d'être au-dessus ou prise par surprise, ou de questions/dilemmes très chauds sur ses positions préférées.`;
+      } else if (mood === 'body_explicit') {
+        moodSpecificInstructions = language === 'us'
+          ? `\n- SPECIFICITY BODY & EXPLICIT CURVES: Focus on bodily curves, chest, transparent lace, arch, waist, wet skin. Raw and highly sensual.`
+          : `\n- SPÉCIFICITÉ CORPS & DÉTAILS SANS FILTRE (PRIORITAIRE) : Focalise les propositions sur l'anatomie intime et les détails sensuels du corps (poitrine/seins lourds qui débordent, cambrure, fesses/cul moulé, dentelle ultra-transparente, peau chaude).`;
+      } else if (mood === 'fantasies_taboo') {
+        moodSpecificInstructions = language === 'us'
+          ? `\n- SPECIFICITY FANTASIES & FORBIDDEN: Explore secret fantasies, unspoken desires, taboo thoughts, and questions on what his wildest taboo is.`
+          : `\n- SPÉCIFICITÉ FANTASMES & INTERDITS (PRIORITAIRE) : Explore les désirs inavoués, les pensées interdites, les scénarios secrets sans tabou, et pose des questions directes sur ses fantasmes inavouables.`;
+      } else if (mood === 'dirty_talk') {
+        moodSpecificInstructions = language === 'us'
+          ? `\n- SPECIFICITY DIRTY TALK: Direct, fiery, playful dirty talk. Tease ruthlessly, whisper raw sensations.`
+          : `\n- SPÉCIFICITÉ DIRTY TALK & PROVOCATION (PRIORITAIRE) : Adopte un langage très direct, complice et brûlant. Provocations sensuelles brutes, excitation partagée, chuchotement sans filtre.`;
+      } else if (mood === 'shower_bath') {
+        moodSpecificInstructions = language === 'us'
+          ? `\n- SPECIFICITY SHOWER & WET SKIN: Water droplets on skin, steamy bathroom mirror, towel slipping off.`
+          : `\n- SPÉCIFICITÉ DOUCHE & BAIN : Gouttes d'eau sur la peau, miroir embué, serviette qui glisse toute seule.`;
+      }
+
       const systemPrompt = `Tu es une experte d'élite en copywriting et ghostwriting pour créatrices glamour & charme sur ${platform === 'onlyfans' ? 'OnlyFans' : 'MYM'}.
 Ton rôle est de générer des MASS MESSAGES ultra-performants qui relancent immédiatement les discussions et l'intérêt des fans.
+
+RÈGLE CAPITALE DE LA VIBE & CIRCONSTANCE :
+- VIBE SÉLECTIONNÉE : "${moodName}" (${moodObj?.badge || 'Thématique active'})
+- CONSIGNE DE CE MOOD : ${moodGuidance}
+${moodSpecificInstructions}
+- TU DOIS OBLIGATOIREMENT imprégner les propositions de cette thématique !
 
 RÈGLES CAPITALES :
 1. LE MESSAGE EST DÉJÀ EN DM : INTERDICTION FORMELLE d'écrire "viens en DM", "viens me dire en DM", "envoie un DM", "shoot me a DM". Le fan lit déjà ce message DANS ses messages privés ! Sois naturelle, comme un SMS intime.
@@ -594,7 +628,10 @@ Directives de style : ${modelProfile?.customToneNotes || 'Affirmations directes,
 Emojis signatures : ${(modelProfile?.favoriteEmojis || []).join(' ')}
 Plateforme : ${platform}
 Langue : ${language === 'us' ? 'ANGLAIS US' : 'FRANÇAIS'}
-Vibe : ${mood} | Hot level : ${hotLevel}/5 | ${pushTypeDirective}
+VIBE & CIRCONSTANCE SÉLECTIONNÉE (PRIORITAIRE) : "${moodName}" (${moodObj?.badge || 'Thématique'})
+Directive de la vibe : ${moodGuidance}
+${moodSpecificInstructions ? `Consigne thématique obligatoire : ${moodSpecificInstructions.trim()}` : ''}
+Hot level : ${hotLevel}/5 | ${pushTypeDirective}
 ${lengthDirective}
 Heure fan réelle : ${resolvedTime.timeString} (${resolvedTime.periodLabelFr})
 Ambiance requise : ${resolvedTime.contextualAtmosphereFr}
