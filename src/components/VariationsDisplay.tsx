@@ -102,10 +102,42 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
           <div>
             <div className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Audit Sécurité & CGU</div>
             <div className="text-xs font-bold text-white mt-0.5">{result.recommendations.safetyAudit}</div>
-            <div className="text-[11px] text-indigo-300 font-mono">Source: {result.source === 'openrouter' ? 'OpenRouter Live' : 'Moteur Studio'}</div>
+            <div className="text-[11px] text-indigo-300 font-mono">
+              {result.source === 'openrouter' ? '🟢 OpenRouter Actif' : '⚡ Moteur Haute Conversion'}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Proactive OpenRouter Execution Status Banner */}
+      {result.openRouterStatus?.attempted && !result.openRouterStatus.success && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs text-amber-200">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            <span>
+              <strong>Note OpenRouter :</strong> {result.openRouterStatus.error || 'Connexion non établie'}. Bascule automatique réussie sur le Moteur Créatif Studio.
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-amber-300 bg-black/40 px-2 py-0.5 rounded">
+            Fallback Actif
+          </span>
+        </div>
+      )}
+
+      {result.source === 'openrouter' && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-2 flex items-center justify-between text-xs text-emerald-200">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+            <span>
+              Génération confirmée via <strong>OpenRouter ({result.modelUsed})</strong>
+              {result.openRouterStatus?.latencyMs ? ` en ${result.openRouterStatus.latencyMs}ms` : ''}.
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-300 bg-black/40 px-2 py-0.5 rounded border border-emerald-500/20">
+            OpenRouter OK
+          </span>
+        </div>
+      )}
 
       {/* Main Split: Variations List (Left/Center) + Realistic Smartphone Mockup (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

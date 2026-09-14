@@ -70,24 +70,71 @@ export function generateClientSimulatedVariations(params: {
   });
 }
 
-function _unusedLegacyVariations(params: {
-  language: Language;
-  priceSuggestion?: number;
-  pushType: 'paid_ppv' | 'free_retention';
-  sentenceCount: SentenceLength;
-}): { recommendations: GenerationResult['recommendations']; variations: GeneratedVariation[] } {
-  const isUs = params.language === 'us';
-  const price = params.priceSuggestion || 15;
-  const priceLabel = isUs ? `$${price}` : `${price}€`;
-  const isOneLine = (params.sentenceCount as string) === 'one_line';
-  const isUltraShort = (params.sentenceCount as string) === 'ultra_short' || (params.sentenceCount as string) === '1_2';
-  const isPaid = params.pushType === 'paid_ppv';
+export async function testOpenRouterConnection(apiKey?: string, model?: string): Promise<OpenRouterTestResult> {
+  const keyToUse = apiKey?.trim() || (typeof window !== 'undefined' ? localStorage.getItem('musepush_openrouter_key') || '' : '');
+  if (!keyToUse) {
+    return {
+      success: false,
+      status: 'error',
+      message: 'Aucune clé API OpenRouter renseignée.'
+    };
+  }
 
-  if (isUs) {
-    if (!isPaid) {
+  // 1. Try server endpoint first
+  try {
+    const res = await fetch('/api/test-openrouter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: keyToUse, model })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    } else {
+      const errData = await res.json().catch(() => null);
+      if (errData && errData.message) {
+        return errData;
+      }
+    }
+  } catch (_netErr) {
+    // Fallback to direct client call if server is not available
+  }
+
+  // 2. Direct browser test to OpenRouter
+  const startTime = Date.now();
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${keyToUse}` }
+    });
+    const latencyMs = Date.now() - startTime;
+    if (response.ok) {
+      const data = await response.json();
+      const usage = data.data?.usage != null ? `${Number(data.data.usage).toFixed(2)}$` : 'Actif';
       return {
-        recommendations: {
-          bestSendTimeFanTz: '8:30 PM - 11:00 PM (Fan Local Time)',
+        success: true,
+        status: 'connected',
+        message: 'Connexion OpenRouter réussie ! Clé valide.',
+        model,
+        creditInfo: `Usage : ${usage}`,
+        latencyMs
+      };
+    } else {
+      return {
+        success: false,
+        status: 'error',
+        message: `Clé OpenRouter refusée (HTTP ${response.status})`,
+        latencyMs
+      };
+    }
+  } catch (e: any) {
+    return {
+      success: false,
+      status: 'error',
+      message: e.message || 'Impossible de joindre OpenRouter'
+    };
+  }
+}
           currentFanLocalTime: 'Evening bedroom unwinding',
           pricingTip: 'Free engagement push: punchy 1-line statements trigger 3x more replies than asking questions.',
           safetyAudit: '100% compliant with platform content guidelines.'
@@ -569,10 +616,12 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
       const timeConstraintDirect = language === 'us'
         ? `\n7. STRICT TIME CONTEXT (${resolvedTime.timeString} - ${resolvedTime.periodLabelUs}):
    - REAL TIME: Exactly ${resolvedTime.timeString} (${resolvedTime.periodLabelUs}).
-   - FORBIDDEN CONTRADICTORY WORDS: ${resolvedTime.forbiddenWordsUs.join(', ')}. If daytime, do NOT speak of night, bedtime or insomnia!`
+   - FORBIDDEN CONTRADICTORY WORDS: ${resolvedTime.forbiddenWordsUs.join(', ')}.
+   - If 12 PM, 1 PM, 2 PM (14h) or afternoon: ABSOLUTE BAN on waking up, morning bed sheets, "just woke up", "this morning", "waking up", or morning coffee. If daytime, do NOT speak of night, bedtime or insomnia!`
         : `\n7. COHÉRENCE HORAIRE STRICTE (${resolvedTime.timeString} - ${resolvedTime.periodLabelFr}) :
    - HEURE RÉELLE : Il est ${resolvedTime.timeString} (${resolvedTime.periodLabelFr}).
-   - MOTS INTERDITS : ${resolvedTime.forbiddenWordsFr.join(', ')}. S'il fait jour (13h/midi/après-midi), INTERDICTION d'évoquer la nuit, "ce soir", "cette nuit", "insomnie" ou "tu dors" !`;
+   - MOTS INTERDITS : ${resolvedTime.forbiddenWordsFr.join(', ')}.
+   - S'IL EST 12H, 13H, 14H OU DANS L'APRÈS-MIDI : INTERDICTION FORMELLE ET ABSOLUE de parler du réveil du matin ("les yeux à peine ouverts", "je me réveille", "au saut du lit", "café du matin", "ce matin", "nuisette qui a glissé pendant la nuit"). Il est l'après-midi, en plein jour ! INTERDICTION d'évoquer la nuit, "ce soir", "cette nuit", "insomnie" ou "tu dors" !`;
 
       const moodObj = getMoodDetail(mood);
       const moodName = moodObj ? (language === 'us' ? moodObj.nameEn : moodObj.name) : mood;
@@ -638,6 +687,7 @@ Ambiance requise : ${resolvedTime.contextualAtmosphereFr}
 Important : AUCUN angle imposé. 100% libre pour que les 6 propositions soient complètement différentes et inventives.
 Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 6 objets avec id, angle, angleLabel créatif inventé, message, estimatedOpenRate, suggestedPrice, mediaNotice, timeContextNote).`;
 
+      const directStartTime = Date.now();
       const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -657,6 +707,8 @@ Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 
         })
       });
 
+      const directLatency = Date.now() - directStartTime;
+
       if (orResponse.ok) {
         const data = await orResponse.json();
         const content = data.choices?.[0]?.message?.content;
@@ -664,17 +716,42 @@ Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 
           const cleaned = content.replace(/```json/gi, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleaned);
           if (parsed && Array.isArray(parsed.variations) && parsed.variations.length > 0) {
+            let sanitizedVars = parsed.variations;
+            if (resolvedTime.period === 'lunch' || resolvedTime.period === 'afternoon') {
+              sanitizedVars = sanitizedVars.map((v: any) => {
+                if (!v || typeof v.message !== 'string') return v;
+                let msg = v.message
+                  .replace(/les yeux à peine ouverts et la nuisette qui a glissé pendant la nuit\.\.\. regarde comment je me réveille ☕/gi, "petite pause de 14h en nuisette légère... regarde comment je m'occupe toute seule 🫦")
+                  .replace(/pendant la nuit\.\.\. regarde comment je me réveille/gi, "au milieu de la journée... regarde ce que je fais")
+                  .replace(/comment je me réveille ☕/gi, "ce que je fais maintenant 🫦")
+                  .replace(/les yeux à peine ouverts/gi, "les yeux qui pétillent")
+                  .replace(/au réveil/gi, "en ce moment")
+                  .replace(/je me réveille/gi, "je pense à toi")
+                  .replace(/au saut du lit/gi, "dans ma chambre")
+                  .replace(/ce matin/gi, "aujourd'hui")
+                  .replace(/\bce soir\b/gi, "aujourd'hui")
+                  .replace(/\bcette nuit\b/gi, "en ce moment")
+                  .replace(/\binsomnie\b/gi, "petite pause");
+                return { ...v, message: msg };
+              });
+            }
             return {
               success: true,
               source: 'openrouter',
               modelUsed: selectedLlmModel,
+              openRouterStatus: {
+                attempted: true,
+                success: true,
+                model: selectedLlmModel,
+                latencyMs: directLatency
+              },
               recommendations: parsed.recommendations || {
                 bestSendTimeFanTz: `${resolvedTime.timeString} (${resolvedTime.periodLabelFr})`,
                 currentFanLocalTime: `${resolvedTime.timeString} — ${resolvedTime.periodLabelFr}`,
                 pricingTip: isPaidPush ? `Prix conseillé: ${priceSuggestion || 15}€` : 'Push gratuit de relance',
                 safetyAudit: 'Termes conformes et validés'
               },
-              variations: parsed.variations
+              variations: sanitizedVars
             };
           }
         }
@@ -702,6 +779,11 @@ Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 
     success: true,
     source: 'fallback_engine',
     modelUsed: 'MusePush Dynamic Creative Engine',
+    openRouterStatus: apiKey ? {
+      attempted: true,
+      success: false,
+      error: 'Clé invalide ou échec de connexion OpenRouter — Fallback haute conversion actif'
+    } : undefined,
     recommendations: dynamicResult.recommendations,
     variations: dynamicResult.variations
   };

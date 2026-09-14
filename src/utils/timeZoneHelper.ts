@@ -88,35 +88,47 @@ export function getResolvedTime(
     period = 'morning';
     periodLabelFr = 'Matinée / Réveil (Plein jour)';
     periodLabelUs = 'Morning / Wake-up (Daylight)';
-    forbiddenWordsFr = ['ce soir', 'cette nuit', 'bonne nuit', 'insomnie', 'tu dors', 'obscurité', 'dans le noir', 'lampe de chevet', 'dodo', 'fin de soirée'];
+    forbiddenWordsFr = ['ce soir', 'cette nuit', 'bonne nuit', 'insomnie', 'tu dors', 'obscurité', 'dans le noir', 'lampe de chevet', 'dodo', 'fin de soirée', 'sommeil'];
     forbiddenWordsUs = ['tonight', 'late night', 'insomnia', 'asleep', 'in the dark', 'bedside lamp', 'cant sleep'];
     contextualAtmosphereFr = 'Réveil sous la couette, lumière du jour par la fenêtre, café chaud, étirements, flemme de sortir du lit en nuisette.';
     contextualAtmosphereUs = 'Waking up in messy sheets, daylight streaming in, morning coffee, stretching in sheer silk.';
-  } else if (totalMinutes >= 690 && totalMinutes < 870) {
-    // 11:30 - 14:29 -> Lunch / Mid-day (13h is here!)
+  } else if (totalMinutes >= 690 && totalMinutes < 840) {
+    // 11:30 - 13:59 -> Lunch / Mid-day (12h - 13h)
     period = 'lunch';
-    periodLabelFr = 'Midi / Pause déjeuner (Plein jour, 13h)';
+    periodLabelFr = 'Midi / Pause déjeuner (Plein jour)';
     periodLabelUs = 'Lunchtime / Mid-day (Broad daylight)';
-    forbiddenWordsFr = ['ce soir', 'cette nuit', 'bonne nuit', 'insomnie', 'tu dors', 'obscurité', 'dans le noir', 'lampe de chevet', 'dodo', 'fin de soirée', 'sommeil'];
-    forbiddenWordsUs = ['tonight', 'late night', 'insomnia', 'asleep', 'in the dark', 'bedside lamp', 'cant sleep', 'good night'];
-    contextualAtmosphereFr = 'Plein milieu de journée (12h-14h), lumière vive du soleil, pause déjeuner, petite déconnexion sensuelle avant de repartir, micro-pause dans la chambre.';
+    forbiddenWordsFr = [
+      'ce matin', 'au réveil', 'je me réveille', 'yeux à peine ouverts', 'au saut du lit', 'mon réveil', 'petit déj', 'petit déjeuner', 'encore endormie', 'pendant la nuit', 'bonne journée',
+      'ce soir', 'cette nuit', 'bonne nuit', 'insomnie', 'tu dors', 'obscurité', 'dans le noir', 'lampe de chevet', 'dodo', 'fin de soirée', 'sommeil'
+    ];
+    forbiddenWordsUs = [
+      'this morning', 'just woke up', 'waking up', 'morning coffee', 'messy bed waking', 'have a good day',
+      'tonight', 'late night', 'insomnia', 'asleep', 'in the dark', 'bedside lamp', 'cant sleep', 'good night'
+    ];
+    contextualAtmosphereFr = 'Plein milieu de journée (12h-13h), lumière vive du soleil, pause déjeuner, petite déconnexion sensuelle avant de repartir, micro-pause dans la chambre.';
     contextualAtmosphereUs = 'Broad daylight, lunch hour pause, sunny room, sneaky mid-day escape in lightweight clothes.';
-  } else if (totalMinutes >= 870 && totalMinutes < 1110) {
-    // 14:30 - 18:29 -> Afternoon
+  } else if (totalMinutes >= 840 && totalMinutes < 1110) {
+    // 14:00 - 18:29 -> Afternoon (14h is here! Broad daylight, active afternoon)
     period = 'afternoon';
-    periodLabelFr = 'Après-midi (Lumière du jour)';
-    periodLabelUs = 'Afternoon (Daylight)';
-    forbiddenWordsFr = ['ce soir', 'cette nuit', 'bonne nuit', 'insomnie', 'tu dors', 'obscurité', 'dans le noir', 'lampe de chevet', 'dodo'];
-    forbiddenWordsUs = ['tonight', 'late night', 'insomnia', 'asleep', 'in the dark', 'bedside lamp', 'cant sleep'];
-    contextualAtmosphereFr = 'Après-midi lumineux, farniente à la maison, essayage tranquille dans le dressing, sieste ou pause canapé en tenue légère.';
-    contextualAtmosphereUs = 'Bright afternoon, relaxing at home, lazy bedroom mood, sunlight through curtains.';
+    periodLabelFr = 'Après-midi (14h - Plein jour)';
+    periodLabelUs = 'Afternoon (Daylight, 2 PM+)';
+    forbiddenWordsFr = [
+      'ce matin', 'au réveil', 'je me réveille', 'yeux à peine ouverts', 'au saut du lit', 'mon réveil', 'petit déj', 'petit déjeuner', 'encore endormie', 'pendant la nuit', 'bonne journée',
+      'ce soir', 'cette nuit', 'bonne nuit', 'insomnie', 'tu dors', 'obscurité', 'dans le noir', 'lampe de chevet', 'dodo'
+    ];
+    forbiddenWordsUs = [
+      'this morning', 'just woke up', 'waking up', 'morning coffee', 'messy bed waking', 'have a good day',
+      'tonight', 'late night', 'insomnia', 'asleep', 'in the dark', 'bedside lamp', 'cant sleep'
+    ];
+    contextualAtmosphereFr = 'Plein après-midi ensoleillé (14h+), farniente à la maison, essayage tranquille dans le dressing, pause canapé en tenue légère, envie de déconcentrer le fan en plein milieu de sa journée.';
+    contextualAtmosphereUs = 'Bright afternoon (2 PM+), relaxing at home, lazy bedroom mood, sunlight through curtains, teasing him in the middle of his workday.';
   } else if (totalMinutes >= 1110 && totalMinutes < 1380) {
     // 18:30 - 22:59 -> Evening
     period = 'evening';
     periodLabelFr = 'Soirée / Début de nuit';
     periodLabelUs = 'Evening / Unwinding';
-    forbiddenWordsFr = ['bonjour', 'ce matin', 'pause déjeuner', 'midi', 'bonne journée'];
-    forbiddenWordsUs = ['good morning', 'this morning', 'lunch break', 'broad daylight'];
+    forbiddenWordsFr = ['bonjour', 'ce matin', 'au réveil', 'je me réveille', 'pause déjeuner', 'midi', 'bonne journée', 'plein soleil', '14h'];
+    forbiddenWordsUs = ['good morning', 'this morning', 'just woke up', 'lunch break', 'broad daylight', 'afternoon sun'];
     contextualAtmosphereFr = 'Fin de journée, retour au calme, lumière tamisée, préparation de la soirée, tenue cosy et sexy pour décompresser.';
     contextualAtmosphereUs = 'Evening mood, unwinding after work, warm dim lighting, slipping into evening lingerie.';
   } else {
@@ -124,8 +136,8 @@ export function getResolvedTime(
     period = 'late_night';
     periodLabelFr = 'Nuit tardive / Insomnie';
     periodLabelUs = 'Late Night / Insomnia';
-    forbiddenWordsFr = ['bonjour', 'ce matin', 'midi', 'pause déjeuner', 'bonne journée', 'plein jour', 'soleil'];
-    forbiddenWordsUs = ['good morning', 'this morning', 'lunch break', 'daylight', 'sunshine'];
+    forbiddenWordsFr = ['bonjour', 'ce matin', 'au réveil', 'midi', 'pause déjeuner', 'après-midi', 'bonne journée', 'plein jour', 'soleil'];
+    forbiddenWordsUs = ['good morning', 'this morning', 'lunch break', 'daylight', 'sunshine', 'afternoon'];
     contextualAtmosphereFr = 'Nuit avancée, insomnie dans le noir ou veilleuse, chuchotements intimes sous la couette, secrets inavouables.';
     contextualAtmosphereUs = 'Middle of the night, dark room whispers, insomnia under the sheets, private confessions.';
   }

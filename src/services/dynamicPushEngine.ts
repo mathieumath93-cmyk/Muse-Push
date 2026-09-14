@@ -808,7 +808,16 @@ const MORNING_VIBES: CreativeVibeGenerator[] = [
     labelUs: 'Morning Sheets',
     noteFr: 'Douceur du matin et paresse au saut du lit.',
     noteUs: 'Gentle morning sleepy sensual stretch.',
-    generateFr: ({ em1, isPaid, isOneLine }) => {
+    generateFr: ({ em1, isPaid, isOneLine, period }) => {
+      // If called in mid-day or afternoon, adapt to daylight
+      if (period === 'lunch' || period === 'afternoon') {
+        const msg = pickRandom([
+          `petite pause en nuisette légère dans ma chambre... regarde comment je m'occupe toute seule 🫦`,
+          `il fait beau à travers les stores et j'avais juste envie de te déconcentrer... regarde ça ${em1}`,
+          `déconnexion coquine au milieu de la journée : viens voir ce que je porte sous mes vêtements 🫦`
+        ]);
+        return isPaid ? `${msg}${isOneLine ? '' : '\n\ndébloque pour voir la vidéo exclusive'}` : msg;
+      }
       const msg = pickRandom([
         `encore à moitié endormie sous la couette avec les cheveux en bataille... viens te blottir contre moi ${em1}`,
         `les yeux à peine ouverts et la nuisette qui a glissé pendant la nuit... regarde comment je me réveille ☕`,
@@ -816,7 +825,15 @@ const MORNING_VIBES: CreativeVibeGenerator[] = [
       ]);
       return isPaid ? `${msg}${isOneLine ? '' : '\n\ndébloque pour voir sous la couette'}` : msg;
     },
-    generateUs: ({ em1, isPaid, isOneLine }) => {
+    generateUs: ({ em1, isPaid, isOneLine, period }) => {
+      if (period === 'lunch' || period === 'afternoon') {
+        const msg = pickRandom([
+          `sneaky break in sheer silk in my bedroom... look what I get up to when I'm alone 🫦`,
+          `sunlight streaming through the blinds and I had an urge to ruin your focus... look at this ${em1}`,
+          `mid-day spicy escape: come see what I'm wearing underneath my clothes 🫦`
+        ]);
+        return isPaid ? `${msg}${isOneLine ? '' : '\n\nunlock to see the private clip'}` : msg;
+      }
       const msg = pickRandom([
         `still half asleep tangled in my blankets with messy bedhead... wish you were cuddled right here ${em1}`,
         `eyes barely open and my sleep slip twisted up during the night... look how I wake up ☕`,
@@ -831,7 +848,15 @@ const MORNING_VIBES: CreativeVibeGenerator[] = [
     labelUs: 'Morning Arch Stretch',
     noteFr: 'Courbures du corps qui s\'étire au soleil.',
     noteUs: 'Slow waking stretch highlighting curves in morning light.',
-    generateFr: ({ em1, isPaid, isOneLine }) => {
+    generateFr: ({ em1, isPaid, isOneLine, period }) => {
+      if (period === 'lunch' || period === 'afternoon') {
+        const msg = pickRandom([
+          `cet étirement lascif les bras en l'air qui fait remonter ma robe d'été bien trop haut... regarde ${em1}`,
+          `lumière du jour sur ma peau et pause détente... viens voir comment je m'étire sur les coussins 🫦`,
+          `flemme de travailler aujourd'hui... viens passer l'après-midi avec moi devant cette vidéo 🫦`
+        ]);
+        return isPaid ? `${msg}${isOneLine ? '' : '\n\nclique pour voir l\'étirement complet'}` : msg;
+      }
       const msg = pickRandom([
         `cet étirement du matin les bras en l'air qui fait remonter le tee-shirt bien trop haut... regarde ${em1}`,
         `lumière du jour sur ma peau et réveil tout en douceur... viens voir comment je m'étire sur les draps 🫦`,
@@ -839,7 +864,15 @@ const MORNING_VIBES: CreativeVibeGenerator[] = [
       ]);
       return isPaid ? `${msg}${isOneLine ? '' : '\n\nclique pour voir l\'étirement complet'}` : msg;
     },
-    generateUs: ({ em1, isPaid, isOneLine }) => {
+    generateUs: ({ em1, isPaid, isOneLine, period }) => {
+      if (period === 'lunch' || period === 'afternoon') {
+        const msg = pickRandom([
+          `that afternoon stretch with arms up that pulls my sundress way too high... take a look ${em1}`,
+          `natural sunlight hitting my curves during my break... see how I stretch out on the couch 🫦`,
+          `zero desire to be productive today... come spend the afternoon with me watching this clip 🫦`
+        ]);
+        return isPaid ? `${msg}${isOneLine ? '' : '\n\ntap to watch the slow stretch'}` : msg;
+      }
       const msg = pickRandom([
         `that morning arch with arms stretched up that pulls my shirt way too high... take a look ${em1}`,
         `morning sunlight hitting my skin while I slowly wake up... see how I stretch out across the bed 🫦`,
@@ -854,7 +887,15 @@ const MORNING_VIBES: CreativeVibeGenerator[] = [
     labelUs: 'Tiny Sleepwear',
     noteFr: 'Tenue de nuit qui dévoile les cuisses et le décolleté.',
     noteUs: 'Minimal sleepwear showing off thighs and chest in morning calm.',
-    generateFr: ({ em1, isPaid, isOneLine }) => {
+    generateFr: ({ em1, isPaid, isOneLine, period }) => {
+      if (period === 'lunch' || period === 'afternoon') {
+        const msg = pickRandom([
+          `ma petite tenue d'intérieur est minuscule aujourd'hui... dis-moi si je dois la garder ou l'enlever 🫦`,
+          `pieds nus dans mon salon en nuisette transparente... tu me rejoins ? 🫦`,
+          `regarde ce que je porte quand je suis seule chez moi... avoue que tu préférerais me voir sans rien ${em1}`
+        ]);
+        return isPaid ? `${msg}${isOneLine ? '' : '\n\ndébloque pour voir la tenue complète'}` : msg;
+      }
       const msg = pickRandom([
         `mon petit shorty de nuit est minuscule ce matin... dis-moi si je dois le garder ou l'enlever pour la journée 🫦`,
         `pieds nus dans ma cuisine en nuisette transparente pour mon premier café... tu me rejoins ? ☕`,
@@ -862,13 +903,123 @@ const MORNING_VIBES: CreativeVibeGenerator[] = [
       ]);
       return isPaid ? `${msg}${isOneLine ? '' : '\n\ndébloque pour voir la tenue complète'}` : msg;
     },
-    generateUs: ({ em1, isPaid, isOneLine }) => {
+    generateUs: ({ em1, isPaid, isOneLine, period }) => {
+      if (period === 'lunch' || period === 'afternoon') {
+        const msg = pickRandom([
+          `my loungewear is tiny today... tell me if I keep it on or take it off 🫦`,
+          `barefoot in my living room in sheer silk... wanna come over? 🫦`,
+          `look what I wear when I'm home alone... admit you'd rather see me with none of it on ${em1}`
+        ]);
+        return isPaid ? `${msg}${isOneLine ? '' : '\n\nunlock to see the full outfit'}` : msg;
+      }
       const msg = pickRandom([
         `these sleep shorts are tiny this morning... tell me if I keep them on or lose them for the day 🫦`,
         `barefoot in my kitchen sipping morning coffee in a sheer nightie... wanna join me? ☕`,
         `look at what I wore to sleep... admit you'd rather see me with none of it on ${em1}`
       ]);
       return isPaid ? `${msg}${isOneLine ? '' : '\n\nunlock to see the full morning outfit'}` : msg;
+    }
+  }
+];
+
+// =========================================================================
+// POOL SPÉCIFIQUE : APRÈS-MIDI & 14H (Plein jour)
+// =========================================================================
+const AFTERNOON_VIBES: CreativeVibeGenerator[] = [
+  {
+    id: 'aft_pause_14h',
+    labelFr: 'Pause sensuelle de 14h',
+    labelUs: 'Mid-afternoon Tease',
+    noteFr: 'Déconnexion complice en plein milieu d\'après-midi.',
+    noteUs: 'Sneaky mid-afternoon distraction while he is active.',
+    generateFr: ({ em1, isPaid, isOneLine }) => {
+      const msg = pickRandom([
+        `petite pause coquine en plein milieu d'après-midi... j'avais juste une envie folle de te déconcentrer 🫦`,
+        `il est 14h passées et je me suis glissée dans ma chambre en tenue très légère... regarde ce que je fais toute seule ${em1}`,
+        `plein soleil dans la chambre et pas grand-chose sur le dos... viens passer ton après-midi avec moi 🫦`
+      ]);
+      return isPaid ? `${msg}${isOneLine ? '' : '\n\ndébloque pour voir toute la vidéo'}` : msg;
+    },
+    generateUs: ({ em1, isPaid, isOneLine }) => {
+      const msg = pickRandom([
+        `sneaky mid-afternoon pause... had a shameless craving to completely ruin your focus right now 🫦`,
+        `broad daylight in my bedroom and barely wearing a thing... look what I get up to all alone ${em1}`,
+        `afternoon sunshine hitting my bed and zero motivation to be productive... come spend your day with me 🫦`
+      ]);
+      return isPaid ? `${msg}${isOneLine ? '' : '\n\nunlock to watch the full clip'}` : msg;
+    }
+  },
+  {
+    id: 'aft_essayage_dressing',
+    labelFr: 'Essayage improvisé',
+    labelUs: 'Afternoon Try-on',
+    noteFr: 'Séance d\'essayage privée en plein jour.',
+    noteUs: 'Private try-on haul in bright daylight.',
+    generateFr: ({ em1, isPaid, isOneLine }) => {
+      const msg = pickRandom([
+        `séance d'essayage improvisée dans mon dressing... cette petite robe d'été est beaucoup trop transparente 🫦`,
+        `j'ai déballé une commande de lingerie reçue aujourd'hui... dis-moi franchement si je peux oser porter ça ${em1}`,
+        `lumière du jour parfaite devant mon miroir... viens voir ce que ça donne de face et de dos 🫦`
+      ]);
+      return isPaid ? `${msg}${isOneLine ? '' : '\n\nclique pour voir l\'essayage complet'}` : msg;
+    },
+    generateUs: ({ em1, isPaid, isOneLine }) => {
+      const msg = pickRandom([
+        `impromptu try-on in my closet this afternoon... this little dress is dangerously sheer in the sun 🫦`,
+        `unboxed a lingerie package that just arrived... tell me honestly if I should dare wear this ${em1}`,
+        `perfect natural daylight in front of my mirror... come see the front and back view 🫦`
+      ]);
+      return isPaid ? `${msg}${isOneLine ? '' : '\n\ntap to see the full try-on'}` : msg;
+    }
+  },
+  {
+    id: 'aft_farniente_canape',
+    labelFr: 'Farniente & détente',
+    labelUs: 'Lazy Lounge Tease',
+    noteFr: 'Paresse sensuelle sur le canapé en pleine journée.',
+    noteUs: 'Sensual lounging on the sofa during the afternoon.',
+    generateFr: ({ em1, isPaid, isOneLine }) => {
+      const msg = pickRandom([
+        `affalée sur le canapé en petite culotte avec la baie vitrée grande ouverte... regarde comme je suis bien 🫦`,
+        `j'avais chaud cet après-midi alors j'ai fait tomber le haut... avoue que t'aimerais être allongé à côté de moi ${em1}`,
+        `après-midi tranquille à la maison mais mes pensées sont très agitées... regarde ce que je filme 🫦`
+      ]);
+      return isPaid ? `${msg}${isOneLine ? '' : '\n\ndébloque pour me rejoindre sur le canapé'}` : msg;
+    },
+    generateUs: ({ em1, isPaid, isOneLine }) => {
+      const msg = pickRandom([
+        `sprawled on my sofa in tiny panties with the balcony door cracked... look how comfy I am 🫦`,
+        `it got hot this afternoon so I ditched my top... admit you wish you were stretched out beside me ${em1}`,
+        `quiet afternoon at home but my thoughts are racing fast... look what I just filmed 🫦`
+      ]);
+      return isPaid ? `${msg}${isOneLine ? '' : '\n\nunlock to join me on the couch'}` : msg;
+    }
+  }
+];
+
+// Midi / Pause Déjeuner (11h30 - 13h59)
+const MIDDAY_VIBES: CreativeVibeGenerator[] = [
+  {
+    id: 'mid_pause_dej',
+    labelFr: 'Pause de midi coquine',
+    labelUs: 'Lunch Break Tease',
+    noteFr: 'Petite déconnexion sensuelle pendant la pause de midi.',
+    noteUs: 'Sensual midday pause to spice up his lunch hour.',
+    generateFr: ({ em1, isPaid, isOneLine }) => {
+      const msg = pickRandom([
+        `petite pause entre midi et deux... je me suis isolée dans ma chambre pour te faire une vidéo exclusive 🫦`,
+        `au lieu de manger sagement, regarde à quoi j'ai préféré passer ma pause déjeuner ${em1}`,
+        `un petit dessert coquin pour ta pause de midi : regarde ce qui se cache sous mon peignoir 🫦`
+      ]);
+      return isPaid ? `${msg}${isOneLine ? '' : '\n\ndébloque pour voir le dessert'}` : msg;
+    },
+    generateUs: ({ em1, isPaid, isOneLine }) => {
+      const msg = pickRandom([
+        `sneaking a private moment during my lunch break... ducked into my room to film this exclusive clip for you 🫦`,
+        `instead of having a quiet lunch, look what I decided to do with my break ${em1}`,
+        `a sweet spicy dessert for your lunch break: see what's hiding under my robe 🫦`
+      ]);
+      return isPaid ? `${msg}${isOneLine ? '' : '\n\nunlock for the sweet treat'}` : msg;
     }
   }
 ];
@@ -1059,7 +1210,7 @@ const GENERAL_HOT_VIBES: CreativeVibeGenerator[] = [
 ];
 
 // Helper to select the pool corresponding to the user's selected mood
-function getVibesForMood(mood: MoodCategory): CreativeVibeGenerator[] {
+function getVibesForMood(mood: MoodCategory, period: TimeOfDayPeriod = 'afternoon'): CreativeVibeGenerator[] {
   switch (mood) {
     case 'positions_hot':
       return POSITIONS_VIBES;
@@ -1072,11 +1223,33 @@ function getVibesForMood(mood: MoodCategory): CreativeVibeGenerator[] {
     case 'shower_bath':
       return SHOWER_VIBES;
     case 'morning':
-      return [...MORNING_VIBES, ...BODY_VIBES.slice(0, 3)];
+      if (period === 'morning') {
+        return [...MORNING_VIBES, ...BODY_VIBES.slice(0, 3)];
+      } else if (period === 'lunch') {
+        return [...MIDDAY_VIBES, ...AFTERNOON_VIBES, ...BODY_VIBES.slice(0, 3)];
+      } else if (period === 'afternoon') {
+        return [...AFTERNOON_VIBES, ...BODY_VIBES.slice(0, 3)];
+      } else {
+        return [...AFTERNOON_VIBES, ...BODY_VIBES.slice(0, 3)];
+      }
     case 'late_night':
-      return [...LATE_NIGHT_VIBES, ...DIRTY_TALK_VIBES.slice(0, 2), ...FANTASIES_VIBES.slice(0, 2)];
+      if (period === 'late_night' || period === 'evening') {
+        return [...LATE_NIGHT_VIBES, ...DIRTY_TALK_VIBES.slice(0, 2), ...FANTASIES_VIBES.slice(0, 2)];
+      } else if (period === 'lunch' || period === 'afternoon') {
+        return [...AFTERNOON_VIBES, ...DIRTY_TALK_VIBES.slice(0, 2), ...FANTASIES_VIBES.slice(0, 2)];
+      } else {
+        return [...DIRTY_TALK_VIBES, ...FANTASIES_VIBES.slice(0, 3)];
+      }
     case 'gfe':
-      return [...GFE_VIBES, ...MORNING_VIBES.slice(0, 2), ...GENERAL_HOT_VIBES];
+      if (period === 'morning') {
+        return [...GFE_VIBES, ...MORNING_VIBES.slice(0, 2), ...GENERAL_HOT_VIBES];
+      } else if (period === 'lunch') {
+        return [...GFE_VIBES, ...MIDDAY_VIBES, ...GENERAL_HOT_VIBES];
+      } else if (period === 'afternoon') {
+        return [...GFE_VIBES, ...AFTERNOON_VIBES, ...GENERAL_HOT_VIBES];
+      } else {
+        return [...GFE_VIBES, ...LATE_NIGHT_VIBES.slice(0, 2), ...GENERAL_HOT_VIBES];
+      }
     case 'interactive':
       return [...INTERACTIVE_VIBES, ...POSITIONS_VIBES.slice(0, 2), ...FANTASIES_VIBES.slice(0, 2)];
     case 'exclusive_vip':
@@ -1134,13 +1307,17 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
   const locNoteFr = location ? `ici ${location.toLowerCase().startsWith('dans') ? location : 'dans ' + location}` : 'à la maison';
   const locNoteUs = location ? `here in ${location}` : 'back home';
 
-  // 1. Get the pool specifically aligned with the selected VIBE & CIRCONSTANCE
-  const moodPool = getVibesForMood(mood);
+  // 1. Get the pool specifically aligned with the selected VIBE & CIRCONSTANCE, adjusted for TIME OF DAY
+  const moodPool = getVibesForMood(mood, period);
 
   // Guarantee at least 6 unique vibes by pulling from secondary compatible pools if necessary
   let candidateVibes = [...moodPool];
   if (candidateVibes.length < 6) {
-    const backupPool = [...POSITIONS_VIBES, ...BODY_VIBES, ...DIRTY_TALK_VIBES, ...FANTASIES_VIBES];
+    const backupPool = period === 'morning'
+      ? [...POSITIONS_VIBES, ...BODY_VIBES, ...DIRTY_TALK_VIBES, ...MORNING_VIBES]
+      : (period === 'lunch' || period === 'afternoon'
+        ? [...AFTERNOON_VIBES, ...POSITIONS_VIBES, ...BODY_VIBES, ...DIRTY_TALK_VIBES, ...MIDDAY_VIBES]
+        : [...POSITIONS_VIBES, ...BODY_VIBES, ...DIRTY_TALK_VIBES, ...LATE_NIGHT_VIBES]);
     for (const b of backupPool) {
       if (!candidateVibes.some(c => c.id === b.id)) {
         candidateVibes.push(b);
@@ -1156,7 +1333,7 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
   const priceOffsets = [0, -3, 2, -1, 4, 1];
 
   const variations: GeneratedVariation[] = shuffledVibes.map((vibe, idx) => {
-    const rawMessage = isUs
+    let rawMessage = isUs
       ? vibe.generateUs({
           em1,
           em2,
@@ -1175,6 +1352,39 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
           isOneLine,
           mediaContext
         });
+
+    // Rigorous real-time sanitizer: if it is lunch (12h-13h) or afternoon (14h+), purge ANY wake-up or night artifacts
+    if (period === 'lunch' || period === 'afternoon') {
+      if (!isUs) {
+        rawMessage = rawMessage
+          .replace(/les yeux à peine ouverts et la nuisette qui a glissé pendant la nuit\.\.\. regarde comment je me réveille ☕/gi, "petite pause de 14h en nuisette légère... regarde comment je m'occupe toute seule 🫦")
+          .replace(/pendant la nuit\.\.\. regarde comment je me réveille/gi, "au milieu de la journée... regarde ce que je fais")
+          .replace(/comment je me réveille ☕/gi, "ce que je fais maintenant 🫦")
+          .replace(/les yeux à peine ouverts/gi, "les yeux qui pétillent")
+          .replace(/au réveil/gi, "en ce moment")
+          .replace(/je me réveille/gi, "je pense à toi")
+          .replace(/au saut du lit/gi, "dans ma chambre")
+          .replace(/ce matin/gi, "aujourd'hui")
+          .replace(/mon petit shorty de nuit est minuscule ce matin/gi, "ma petite tenue d'été est minuscule cet après-midi")
+          .replace(/\bce soir\b/gi, "aujourd'hui")
+          .replace(/\bcette nuit\b/gi, "en ce moment")
+          .replace(/\bbonne nuit\b/gi, "bisous")
+          .replace(/\binsomnie\b/gi, "pause coquine")
+          .replace(/\btu dors\b/gi, "t'es là")
+          .replace(/\bdans le noir\b/gi, "dans ma chambre")
+          .replace(/\blampe de chevet\b/gi, "lumière du soleil");
+      } else {
+        rawMessage = rawMessage
+          .replace(/eyes barely open and my sleep slip twisted up during the night\.\.\. look how I wake up ☕/gi, "sneaky afternoon break in sheer lace... look what I get up to when I'm alone 🫦")
+          .replace(/look how I wake up ☕/gi, "look what I'm doing right now 🫦")
+          .replace(/\bthis morning\b/gi, "today")
+          .replace(/\btonight\b/gi, "today")
+          .replace(/\blate night\b/gi, "right now")
+          .replace(/\binsomnia\b/gi, "taking a break")
+          .replace(/\bin the dark\b/gi, "in my room")
+          .replace(/\bgood night\b/gi, "talk soon");
+      }
+    }
 
     const tierPrice = Math.max(8, priceVal + (priceOffsets[idx] || 0));
     const priceStr = isPaid ? (isUs ? `$${tierPrice}` : `${tierPrice}€`) : 'Gratuit';

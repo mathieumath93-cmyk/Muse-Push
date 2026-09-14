@@ -33,6 +33,72 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Test OpenRouter API Key & Connection endpoint
+app.post('/api/test-openrouter', async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const { apiKey, model = 'anthropic/claude-3.5-sonnet' } = req.body;
+    const keyToUse = (apiKey || process.env.OPENROUTER_API_KEY || '').trim();
+
+    if (!keyToUse) {
+      return res.status(400).json({
+        success: false,
+        status: 'error',
+        message: 'Aucune clé API OpenRouter renseignée.'
+      });
+    }
+
+    // Call OpenRouter /api/v1/auth/key to verify credentials & quota
+    const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${keyToUse}`
+      }
+    });
+
+    const latencyMs = Date.now() - startTime;
+
+    if (response.ok) {
+      const data = await response.json();
+      const usage = data.data?.usage != null ? `${Number(data.data.usage).toFixed(2)}$` : 'Actif';
+      const limit = data.data?.limit != null ? `${Number(data.data.limit).toFixed(2)}$` : 'Illimité';
+      return res.json({
+        success: true,
+        status: 'connected',
+        message: 'Connexion OpenRouter réussie ! Clé valide et active.',
+        model,
+        creditInfo: `Usage : ${usage} / Limite : ${limit}`,
+        latencyMs
+      });
+    } else {
+      const errText = await response.text();
+      let msg = `Erreur OpenRouter (${response.status})`;
+      if (response.status === 401) {
+        msg = 'Clé API OpenRouter invalide ou révoquée (HTTP 401 Unauthorized).';
+      } else if (response.status === 402) {
+        msg = 'Crédits OpenRouter insuffisants (HTTP 402 Payment Required). Recharge tes crédits sur openrouter.ai.';
+      } else if (response.status === 429) {
+        msg = 'Limite de requêtes atteinte sur OpenRouter (HTTP 429 Rate Limit).';
+      } else {
+        msg = `OpenRouter a répondu : ${errText.slice(0, 150)}`;
+      }
+      return res.status(response.status).json({
+        success: false,
+        status: 'error',
+        message: msg,
+        latencyMs
+      });
+    }
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      status: 'error',
+      message: err.message || 'Impossible de joindre le serveur OpenRouter.',
+      latencyMs: Date.now() - startTime
+    });
+  }
+});
+
 // Timezone clock endpoint to help with live timezone calculations
 app.get('/api/timezones', (req, res) => {
   const now = new Date();
@@ -201,12 +267,14 @@ Utilise des tournures familières, spontanées (ex: "coucou toi", "j’ai pensé
       ? `8. CRITICAL TIME CONTEXT & REAL-WORLD CLOCK (CURRENT FAN TIME: ${resolvedTime.timeString} - ${resolvedTime.periodLabelUs}):
    - CURRENT LOCAL TIME: Exactly ${resolvedTime.timeString} (${resolvedTime.periodLabelUs}).
    - FORBIDDEN CONTRADICTORY WORDS: Do NOT use ${resolvedTime.forbiddenWordsUs.map(w => `"${w}"`).join(', ')}.
-   - If it is daytime (such as 1:00 PM / lunch break / afternoon / morning), it is BROAD DAYLIGHT! NEVER speak of "night", "bedtime", "insomnia", "sleeping", or "dark room".
+   - IF IT IS 12 PM, 1 PM, 2 PM (14h) OR AFTERNOON: ABSOLUTE BAN on waking up, morning bed sheets, messy sleep hair, "just woke up", "this morning", "waking up", or morning coffee. The day is already in full swing! It is BROAD DAYLIGHT.
+   - If it is daytime: BROAD DAYLIGHT! NEVER speak of "night", "bedtime", "tonight", "insomnia", "sleeping", or "dark room".
    - REAL ATMOSPHERE REQUIRED: ${resolvedTime.contextualAtmosphereUs}`
       : `8. RÈGLE CRITIQUE DE COHÉRENCE HORAIRE & LUMIÈRE DU JOUR (HEURE RÉELLE ACTUELLE DU FAN : ${resolvedTime.timeString} - ${resolvedTime.periodLabelFr}) :
    - HEURE LOCALE EXACTE DU FAN : Il est actuellement ${resolvedTime.timeString} (${resolvedTime.periodLabelFr}).
    - MOTS & EXPRESSIONS STRICTEMENT INTERDITS : Ne mentionne JAMAIS ${resolvedTime.forbiddenWordsFr.map(w => `"${w}"`).join(', ')}.
-   - INTERDICTION FORMELLE DE PARLER DE SOIRÉE OU DE NUIT EN PLEIN JOUR : S'il est 13h / midi / après-midi, il fait PLEIN JOUR ! Interdiction d'évoquer "ce soir", "cette nuit", "bonne nuit", "insomnie", "tu dors", "dans le noir" ou "lampe de chevet".
+   - S'IL EST 12H, 13H, 14H OU DANS L'APRÈS-MIDI : INTERDICTION FORMELLE ET ABSOLUE DE PARLER DU RÉVEIL DU MATIN ! Tu ne dois JAMAIS écrire "les yeux à peine ouverts", "je me réveille", "au réveil", "au saut du lit", "mon café du matin", "ce matin", "nuisette qui a glissé pendant la nuit". À 14h, la journée est déjà bien entamée, le réveil est passé depuis des heures, c'est l'après-midi en plein jour !
+   - S'IL FAIT JOUR : INTERDICTION FORMELLE d'évoquer "ce soir", "cette nuit", "bonne nuit", "insomnie", "tu dors", "dans le noir" ou "lampe de chevet".
    - AMBIANCE OBLIGATOIRE : ${resolvedTime.contextualAtmosphereFr}`;
 
     const moodObj = getMoodDetail(mood);
@@ -393,9 +461,17 @@ Donne à chaque proposition un "angleLabel" court et original inventé pour l'oc
 
     let parsedResult: any = null;
     let source: 'openrouter' | 'fallback_engine' = 'fallback_engine';
+    const openRouterDiagnostic = {
+      attempted: Boolean(apiKey),
+      success: false,
+      error: undefined as string | undefined,
+      model: selectedModel,
+      latencyMs: 0
+    };
 
     // 1. If OpenRouter API key is provided, call OpenRouter
     if (apiKey) {
+      const orStartTime = Date.now();
       try {
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -416,6 +492,8 @@ Donne à chaque proposition un "angleLabel" court et original inventé pour l'oc
           })
         });
 
+        openRouterDiagnostic.latencyMs = Date.now() - orStartTime;
+
         if (response.ok) {
           const data = await response.json();
           const content = data.choices?.[0]?.message?.content;
@@ -424,15 +502,20 @@ Donne à chaque proposition un "angleLabel" court et original inventé pour l'oc
               const cleaned = content.replace(/```json/gi, '').replace(/```/g, '').trim();
               parsedResult = JSON.parse(cleaned);
               source = 'openrouter';
-            } catch (err) {
+              openRouterDiagnostic.success = true;
+            } catch (err: any) {
               console.warn('Could not parse OpenRouter response as strict JSON, falling back:', err);
+              openRouterDiagnostic.error = 'Réponse OpenRouter non-JSON';
             }
           }
         } else {
           const errText = await response.text();
           console.warn('OpenRouter API returned error:', response.status, errText);
+          openRouterDiagnostic.error = `HTTP ${response.status}: ${errText.slice(0, 150)}`;
         }
-      } catch (orErr) {
+      } catch (orErr: any) {
+        openRouterDiagnostic.latencyMs = Date.now() - orStartTime;
+        openRouterDiagnostic.error = orErr.message || 'Erreur réseau vers OpenRouter';
         console.warn('OpenRouter connection error:', orErr);
       }
     }
@@ -489,36 +572,68 @@ Donne à chaque proposition un "angleLabel" court et original inventé pour l'oc
       source = 'fallback_engine';
     }
 
-    // Double safety sanitizer: if daytime, ensure no nocturnal hallucinations slipped through
+    // Double safety sanitizer: purge nocturnal or morning wake-up hallucinations according to real period
     if (parsedResult && Array.isArray(parsedResult.variations)) {
-      if (resolvedTime.period === 'morning' || resolvedTime.period === 'lunch' || resolvedTime.period === 'afternoon') {
-        parsedResult.variations = parsedResult.variations.map((v: any) => {
-          if (!v || typeof v.message !== 'string') return v;
-          let msg = v.message;
-          // French replacements
-          msg = msg.replace(/\bce soir\b/gi, "aujourd'hui");
-          msg = msg.replace(/\bcette nuit\b/gi, "en ce moment");
-          msg = msg.replace(/\bbonne nuit\b/gi, "bisous");
-          msg = msg.replace(/\binsomnie\b/gi, "petite pause");
-          msg = msg.replace(/\btu dors\b/gi, "t'es là");
-          msg = msg.replace(/\bdans le noir\b/gi, "dans ma chambre");
-          msg = msg.replace(/\blampe de chevet\b/gi, "lumière du soleil");
-          // English replacements
-          msg = msg.replace(/\btonight\b/gi, "today");
-          msg = msg.replace(/\blate night\b/gi, "right now");
-          msg = msg.replace(/\bgood night\b/gi, "talk soon");
-          msg = msg.replace(/\binsomnia\b/gi, "taking a break");
-          msg = msg.replace(/\bin the dark\b/gi, "in my room");
-          msg = msg.replace(/\bbedside lamp\b/gi, "daylight");
-          return { ...v, message: msg };
-        });
-      }
+      parsedResult.variations = parsedResult.variations.map((v: any) => {
+        if (!v || typeof v.message !== 'string') return v;
+        let msg = v.message;
+
+        if (resolvedTime.period === 'lunch' || resolvedTime.period === 'afternoon') {
+          // French replacements for afternoon/lunch (14h, midday, etc.)
+          msg = msg
+            .replace(/les yeux à peine ouverts et la nuisette qui a glissé pendant la nuit\.\.\. regarde comment je me réveille ☕/gi, "petite pause de 14h en nuisette légère... regarde comment je m'occupe toute seule 🫦")
+            .replace(/pendant la nuit\.\.\. regarde comment je me réveille/gi, "au milieu de la journée... regarde ce que je fais")
+            .replace(/comment je me réveille ☕/gi, "ce que je fais maintenant 🫦")
+            .replace(/les yeux à peine ouverts/gi, "les yeux qui pétillent")
+            .replace(/au réveil/gi, "en ce moment")
+            .replace(/je me réveille/gi, "je pense à toi")
+            .replace(/au saut du lit/gi, "dans ma chambre")
+            .replace(/ce matin/gi, "aujourd'hui")
+            .replace(/petit déj/gi, "pause café")
+            .replace(/petit déjeuner/gi, "pause détente")
+            .replace(/mon petit shorty de nuit est minuscule ce matin/gi, "ma petite tenue d'été est minuscule cet après-midi")
+            .replace(/\bce soir\b/gi, "aujourd'hui")
+            .replace(/\bcette nuit\b/gi, "en ce moment")
+            .replace(/\bbonne nuit\b/gi, "bisous")
+            .replace(/\binsomnie\b/gi, "petite pause")
+            .replace(/\btu dors\b/gi, "t'es là")
+            .replace(/\bdans le noir\b/gi, "dans ma chambre")
+            .replace(/\blampe de chevet\b/gi, "lumière du soleil");
+
+          // English replacements for afternoon/lunch
+          msg = msg
+            .replace(/eyes barely open and my sleep slip twisted up during the night\.\.\. look how I wake up ☕/gi, "sneaky afternoon break in sheer lace... look what I get up to when I'm alone 🫦")
+            .replace(/look how I wake up ☕/gi, "look what I'm doing right now 🫦")
+            .replace(/\bthis morning\b/gi, "today")
+            .replace(/\bjust woke up\b/gi, "taking a break")
+            .replace(/\bwaking up\b/gi, "relaxing")
+            .replace(/\btonight\b/gi, "today")
+            .replace(/\blate night\b/gi, "right now")
+            .replace(/\bgood night\b/gi, "talk soon")
+            .replace(/\binsomnia\b/gi, "taking a break")
+            .replace(/\bin the dark\b/gi, "in my room")
+            .replace(/\bbedside lamp\b/gi, "daylight");
+        } else if (resolvedTime.period === 'morning') {
+          msg = msg
+            .replace(/\bce soir\b/gi, "aujourd'hui")
+            .replace(/\bcette nuit\b/gi, "en ce moment")
+            .replace(/\bbonne nuit\b/gi, "bonne journée")
+            .replace(/\binsomnie\b/gi, "réveil doux")
+            .replace(/\btu dors\b/gi, "tu es réveillé")
+            .replace(/\bdans le noir\b/gi, "au lit")
+            .replace(/\blampe de chevet\b/gi, "lumière du jour")
+            .replace(/\btonight\b/gi, "today")
+            .replace(/\blate night\b/gi, "early morning");
+        }
+        return { ...v, message: msg };
+      });
     }
 
     res.json({
       success: true,
       modelUsed: apiKey ? selectedModel : 'MusePush High-Conversion Engine',
       source,
+      openRouterStatus: openRouterDiagnostic,
       variations: parsedResult.variations || [],
       recommendations: parsedResult.recommendations || {
         bestSendTimeFanTz: `${resolvedTime.timeString} (${resolvedTime.periodLabelFr})`,

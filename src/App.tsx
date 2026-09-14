@@ -7,7 +7,7 @@ import { OpenRouterModal } from './components/OpenRouterModal';
 import { TrainingStudio } from './components/TrainingStudio';
 import { AddModelModal } from './components/AddModelModal';
 import { INITIAL_MODELS, DEFAULT_WINNING_EXAMPLES } from './data';
-import { executePushGeneration } from './services/aiGenerator';
+import { executePushGeneration, testOpenRouterConnection } from './services/aiGenerator';
 import { 
   subscribeModels, 
   saveModelToCloud, 
@@ -25,7 +25,8 @@ import {
   ModelProfile, 
   PushRequestConfig, 
   GenerationResult,
-  WinningExample
+  WinningExample,
+  OpenRouterTestResult
 } from './types';
 import { Sparkles, RefreshCw, Trophy, Zap, AlertCircle } from 'lucide-react';
 
@@ -57,6 +58,41 @@ export default function App() {
   const [selectedLlmModel, setSelectedLlmModel] = useState<string>('anthropic/claude-3.5-sonnet');
   const [temperature, setTemperature] = useState<number>(0.85);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [openRouterStatus, setOpenRouterStatus] = useState<OpenRouterTestResult | null>(null);
+  const [isTestingOpenRouter, setIsTestingOpenRouter] = useState<boolean>(false);
+
+  // Test OpenRouter connection function
+  const handleTestOpenRouter = async (keyToTest?: string) => {
+    const key = keyToTest !== undefined ? keyToTest : openRouterApiKey;
+    if (!key.trim()) {
+      setOpenRouterStatus({
+        success: false,
+        status: 'error',
+        message: 'Aucune clé OpenRouter renseignée.'
+      });
+      return;
+    }
+    setIsTestingOpenRouter(true);
+    try {
+      const res = await testOpenRouterConnection(key, selectedLlmModel);
+      setOpenRouterStatus(res);
+    } catch (e: any) {
+      setOpenRouterStatus({
+        success: false,
+        status: 'error',
+        message: e?.message || 'Erreur de connexion OpenRouter.'
+      });
+    } finally {
+      setIsTestingOpenRouter(false);
+    }
+  };
+
+  // Check OpenRouter status on load if key is saved
+  useEffect(() => {
+    if (openRouterApiKey && openRouterApiKey.trim().length > 5) {
+      handleTestOpenRouter(openRouterApiKey);
+    }
+  }, []);
 
   // Training examples (Few-shot learning) & Agency rules
   const [trainingExamples, setTrainingExamples] = useState<WinningExample[]>(() => {
@@ -262,6 +298,11 @@ export default function App() {
   const handleSaveApiKey = (key: string) => {
     setOpenRouterApiKey(key);
     localStorage.setItem('musepush_openrouter_key', key);
+    if (key.trim()) {
+      handleTestOpenRouter(key);
+    } else {
+      setOpenRouterStatus(null);
+    }
   };
 
   const handleGeneratePush = async () => {
@@ -303,6 +344,17 @@ export default function App() {
 
       if (result && result.success) {
         setGenerationResult(result);
+        if (result.openRouterStatus) {
+          setOpenRouterStatus({
+            success: result.openRouterStatus.success,
+            status: result.openRouterStatus.success ? 'connected' : (openRouterApiKey ? 'error' : 'unknown'),
+            message: result.openRouterStatus.success 
+              ? `Opérationnel via ${result.modelUsed}`
+              : (result.openRouterStatus.error || 'Erreur API OpenRouter'),
+            latencyMs: result.openRouterStatus.latencyMs,
+            creditInfo: result.openRouterStatus.creditInfo
+          });
+        }
       } else {
         alert('Erreur lors de la génération du push.');
       }
@@ -329,6 +381,9 @@ export default function App() {
         onSelectTab={setActiveTab}
         trainingCount={trainingExamples.length}
         isCloudSynced={isCloudSynced}
+        openRouterStatus={openRouterStatus}
+        isTestingOpenRouter={isTestingOpenRouter}
+        onTestOpenRouter={() => handleTestOpenRouter()}
       />
 
       {/* Main Content Workspace */}
@@ -448,6 +503,9 @@ export default function App() {
         onSelectModel={setSelectedLlmModel}
         temperature={temperature}
         onSetTemperature={setTemperature}
+        openRouterStatus={openRouterStatus}
+        isTesting={isTestingOpenRouter}
+        onTestConnection={handleTestOpenRouter}
       />
 
       {/* Subtle compact footer */}

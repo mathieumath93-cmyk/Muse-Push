@@ -93,10 +93,28 @@ export interface GeneratedVariation {
   timeContextNote: string;
 }
 
+export interface OpenRouterStatusInfo {
+  attempted: boolean;
+  success: boolean;
+  error?: string;
+  model?: string;
+  latencyMs?: number;
+}
+
+export interface OpenRouterTestResult {
+  success: boolean;
+  status: 'connected' | 'error';
+  message: string;
+  model?: string;
+  creditInfo?: string;
+  latencyMs?: number;
+}
+
 export interface GenerationResult {
   success: boolean;
   modelUsed: string;
   source: 'openrouter' | 'fallback_engine';
+  openRouterStatus?: OpenRouterStatusInfo;
   variations: GeneratedVariation[];
   recommendations: {
     bestSendTimeFanTz: string;
