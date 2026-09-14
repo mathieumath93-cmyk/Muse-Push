@@ -61,10 +61,12 @@ export interface PushRequestConfig {
   targetAudience: 'all_subs' | 'renew_on' | 'vip_spenders' | 'inactive_subs';
   hotLevel: number; // 1 to 5
   timeContext: {
-    selectedTzZone: 'FR_CET' | 'US_EST' | 'US_CST' | 'US_PST';
+    selectedTzZone: 'FR_CET' | 'US_EST' | 'US_CST' | 'US_PST' | 'LOCAL';
     customHour?: number;
     customMinute?: number;
     useCurrentTime: boolean;
+    calculatedHour?: string;
+    resolvedPeriod?: string;
   };
   openRouterConfig?: {
     apiKey?: string;

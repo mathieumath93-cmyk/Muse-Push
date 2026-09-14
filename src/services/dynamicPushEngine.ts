@@ -7,6 +7,7 @@ import {
   GeneratedVariation, 
   GenerationResult 
 } from '../types';
+import { getResolvedTime, ResolvedTimeContext, TzZone } from '../utils/timeZoneHelper';
 
 interface DynamicEngineParams {
   modelProfile?: ModelProfile;
@@ -18,6 +19,14 @@ interface DynamicEngineParams {
   hotLevel?: number;
   pushType?: 'paid_ppv' | 'free_retention';
   sentenceCount?: SentenceLength;
+  timeContext?: {
+    selectedTzZone?: TzZone;
+    customHour?: number;
+    customMinute?: number;
+    useCurrentTime?: boolean;
+    calculatedHour?: string;
+    resolvedPeriod?: string;
+  };
 }
 
 // Random picker utility
@@ -41,14 +50,21 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
     priceSuggestion = 15,
     platform = 'onlyfans',
     pushType = 'paid_ppv',
-    sentenceCount = 'short'
+    sentenceCount = 'short',
+    timeContext
   } = params;
+
+  // Resolve accurate time context based on user's target time zone
+  const resolvedTime: ResolvedTimeContext = getResolvedTime(
+    timeContext?.selectedTzZone || 'FR_CET',
+    timeContext?.useCurrentTime ?? true,
+    timeContext?.customHour,
+    timeContext?.customMinute
+  );
 
   const isUs = language === 'us';
   const isPaid = pushType === 'paid_ppv';
   const isOneLine = sentenceCount === 'one_line';
-  const isUltraShort = sentenceCount === 'ultra_short';
-  const modelName = modelProfile?.name || (isUs ? 'Chloe' : 'Sophia');
   const location = modelProfile?.location?.trim() || '';
   const occupation = modelProfile?.realLifeOccupation?.trim() || '';
   const themes = modelProfile?.themes && modelProfile.themes.length > 0 ? modelProfile.themes : ['mode', 'café', 'lit'];
@@ -59,65 +75,117 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
   const chosenTheme = pickRandom(themes);
 
   const priceVal = priceSuggestion || 15;
-  const priceTag = isPaid ? (isUs ? `$${priceVal}` : `${priceVal}€`) : (isUs ? 'Free' : 'Gratuit');
+  const period = resolvedTime.period; // 'morning' | 'lunch' | 'afternoon' | 'evening' | 'late_night'
 
-  // Location string injector
+  // Time-aware location / moment notes
   const locNoteFr = location ? `ici ${location.toLowerCase().startsWith('dans') ? location : 'dans ' + location}` : 'à la maison';
   const locNoteUs = location ? `here in ${location}` : 'back home';
-
-  // Specific occupation context injector
-  const isArt = occupation.toLowerCase().includes('art') || chosenTheme.toLowerCase().includes('art');
-  const occStoryFr = isArt 
-    ? 'au milieu de mes toiles et catalogues d’art' 
-    : (occupation ? `après ma journée de ${occupation.toLowerCase().split('/')[0].trim()}` : 'dans mon dressing');
-  const occStoryUs = isArt
-    ? 'surrounded by my art prints and sketches'
-    : (occupation ? `finally winding down after work` : 'in my bedroom mirror');
 
   let variations: GeneratedVariation[] = [];
 
   if (isUs) {
     if (!isPaid) {
-      // US FREE ENGAGEMENT VARIATIONS
-      const v1Hooks = [
-        `honestly shouldn't have tried this lingerie on in front of my mirror tonight... it's dangerously sheer ${em1}`,
-        `crawled into bed barefoot in an oversized sweater with absolutely nothing under it ${em1}`,
-        `late night thought... pretty sure you wouldn't survive 5 minutes in this room right now ${em2}`,
-        `just unboxed a tiny silk package ${locNoteUs}, fabric is barely holding together ${em1}`,
-        `sitting on my bedroom floor unable to sleep thinking about someone who definitely knows who they are ${em1}`,
-        `my sheets are a complete mess tonight, wish you were here to see why ${em2}`
-      ];
-      const v2Hooks = [
+      // US FREE ENGAGEMENT VARIATIONS - TIME AWARE
+      let v1Hooks: string[] = [];
+      let v2Hooks: string[] = [];
+      let v3Hooks: string[] = [];
+      let v4Hooks: string[] = [];
+      let v5Hooks: string[] = [];
+      let v6Hooks: string[] = [];
+
+      if (period === 'morning') {
+        v1Hooks = [
+          `woke up messy in oversized cotton and absolutely nothing underneath ${em1}`,
+          `barely out of bed stretching in the morning light, thinking about you ${em2}`,
+          `morning coffee in bed with this dangerously sheer lace on ${em1}`
+        ];
+        v3Hooks = [
+          `sunlight hitting my pillows, messy hair and total freedom this morning ${em1}`,
+          `still wrapped in my duvet enjoying this slow quiet morning ${em2}`
+        ];
+        v6Hooks = [
+          `sending you a quick morning secret before my day even starts 🤍`,
+          `first thought of the morning belongs strictly to you ${em1}`
+        ];
+      } else if (period === 'lunch') {
+        // MID-DAY / LUNCH (Around 13:00 / 1 PM)
+        v1Hooks = [
+          `sneaked away into my room for a quick lunch break in sheer silk ${em1}`,
+          `broad daylight hitting my sheets right now, couldn't resist dropping this in ${em2}`,
+          `unwrapped a tiny lingerie package during my mid-day break ${em1}`,
+          `quiet mid-day pause in my bedroom, thinking about someone who definitely knows who they are ${em1}`
+        ];
+        v3Hooks = [
+          `taking a sunny lunch break sprawled on my bed, tell me what you're up to ${em2}`,
+          `mid-day sunshine through the blinds and zero desire to get back to work ${em1}`,
+          `barefoot on my bedroom rug during lunch, peeling this top off ${em1}`
+        ];
+        v6Hooks = [
+          `sneaking you this private mid-day clip while everyone else is busy 🤍`,
+          `a little spontaneous lunch break distraction saved just for you ${em1}`
+        ];
+      } else if (period === 'afternoon') {
+        v1Hooks = [
+          `lazy afternoon in my bedroom, natural sunlight makes this silk completely sheer ${em1}`,
+          `taking a quick afternoon pause at home, outfit barely staying on ${em2}`,
+          `sitting on my rug in the afternoon sun thinking about you ${em1}`
+        ];
+        v3Hooks = [
+          `quiet afternoon at home, relaxing in soft lace with my playlist on ${em1}`,
+          `afternoon light hitting my bedroom mirror just right today ${em2}`
+        ];
+        v6Hooks = [
+          `a little afternoon secret dropped right here in our chat 🤍`,
+          `taking five minutes just to send you this private vibe ${em1}`
+        ];
+      } else if (period === 'evening') {
+        v1Hooks = [
+          `finally home kicking my shoes off and slipping into something dangerously sheer ${em1}`,
+          `evening unwinding in my bedroom, robe completely slipped off ${em2}`,
+          `cozy evening at home, candles on and nothing to rush for ${em1}`
+        ];
+        v3Hooks = [
+          `finally winding down after work ${occStoryUs(occupation, isArt(chosenTheme))}, tea and silk ${em1}`,
+          `soft evening lights in my bedroom, tell me what you're doing right now ${em2}`
+        ];
+        v6Hooks = [
+          `lights turned all the way down, just wanted you to see what nobody else gets to see ${em2}`,
+          `quiet evening mood strictly reserved between you and me tonight 🤍`
+        ];
+      } else {
+        // LATE NIGHT
+        v1Hooks = [
+          `crawled into bed unable to sleep, sheets are a complete mess tonight ${em1}`,
+          `late night thoughts... pretty sure you wouldn't survive 5 minutes in this room right now ${em2}`,
+          `sitting on my bedroom floor in the dark thinking about someone who knows who they are ${em1}`
+        ];
+        v3Hooks = [
+          `dark quiet bedroom, sheets wrapped tight, whisper me something ${em1}`,
+          `restless in bed tonight, tell me you're not sleeping yet ${em2}`
+        ];
+        v6Hooks = [
+          `whispering this before i fall asleep... keep this private between us 🤍`,
+          `late night mood strictly reserved for my favorite person ${em1}`
+        ];
+      }
+
+      v2Hooks = [
         `i'm 100% convinced you wouldn't survive 2 minutes next to me dressed like this under my sheets ${em2}`,
         `bet you have zero self-control when it comes to women who take what they want ${em1}`,
         `don't pretend you'd stay calm if i walked into your room looking like this right now ${em2}`,
-        `you talk a big game, but let's be honest... you'd fold in seconds ${em1}`,
-        `i challenge you to stare at me for 30 seconds without blushing ${em2}`
+        `you talk a big game, but let's be honest... you'd fold in seconds ${em1}`
       ];
-      const v3Hooks = [
-        `finally home ${locNoteUs} ${occStoryUs}, kicking my shoes off and peeling this top off ${em1}`,
-        `bedroom mirror selfie just got completely out of hand tonight ${em2}`,
-        `cozy rain outside, hot tea in bed, and my absolute sheerest lace on ${em1}`,
-        `just got out of the hot shower, steam on the glass, zero makeup and total freedom ${em1}`,
-        `sprawled out across my duvet with my favorite playlist, tell me what you're doing right now ${em2}`
+
+      v4Hooks = [
+        `anyone who says they prefer big pajamas over sheer silk lingerie is lying to themselves ${em1}`,
+        `unpopular opinion: natural messy hair and zero makeup always beats dressing up ${em2}`,
+        `controversial take: shy guys are ten times more dangerous behind closed doors ${em1}`
       ];
-      const v4Hooks = [
-        `anyone who says they prefer big pajamas over black silk lingerie is lying to themselves ${em1}`,
-        `unpopular opinion: quiet bedroom nights always beat going out to loud crowded clubs ${em2}`,
-        `controversial take: shy guys are ten times more dangerous behind closed doors ${em1}`,
-        `truth is, silk against bare skin feels way too addictive to ever wear regular clothes again ${em2}`
-      ];
-      const v5Hooks = [
-        `my silk robe completely slipped off my shoulder while recording this... zero filter ${em1}`,
-        `tried to take an innocent mirror check and realized how completely see-through this is 🙈`,
-        `spilled a drop of ice water on my silk cami and now it's clinging everywhere ${em1}`,
-        `laughed so hard at my own clumsy self tripping into bed in this tiny lingerie ${em2}`
-      ];
-      const v6Hooks = [
-        `never posting this on my public story, this mood is strictly between you and me tonight ${em1}`,
-        `lights are turned all the way down, just wanted you to see what nobody else gets to see ${em2}`,
-        `whispering this before i fall asleep... keep this private between us 🤍`,
-        `saved this little private clip right here in our chat, tell me you're not sleeping yet ${em1}`
+
+      v5Hooks = [
+        `my silk robe completely slipped off while taking this... zero filter ${em1}`,
+        `tried to take a quick mirror check and realized how completely see-through this is 🙈`,
+        `spilled a drop of water on my silk cami and now it's clinging everywhere ${em1}`
       ];
 
       variations = [
@@ -125,11 +193,11 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
           id: `var-${Date.now()}-1`,
           angle: 'direct',
           angleLabel: 'Intimate Home Confession (Statement)',
-          message: isOneLine ? pickRandom(v1Hooks) : `${pickRandom(v1Hooks)}\n\nbet you'd have zero self-control sitting on my bed right now... ${em2}`,
+          message: isOneLine ? pickRandom(v1Hooks) : `${pickRandom(v1Hooks)}\n\nbet you'd have zero self-control right here with me... ${em2}`,
           estimatedOpenRate: `${randomInt(93, 97)}%`,
           suggestedPrice: 'Free',
           mediaNotice: 'Direct free message / Chat starter',
-          timeContextNote: 'Triggers instant response through authentic bedroom vulnerability.'
+          timeContextNote: `Time-aligned for ${resolvedTime.timeString} (${resolvedTime.periodLabelUs}).`
         },
         {
           id: `var-${Date.now()}-2`,
@@ -138,83 +206,142 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
           message: isOneLine ? pickRandom(v2Hooks) : `${pickRandom(v2Hooks)}\n\ntell me i'm wrong, or prove it... ${em1}`,
           estimatedOpenRate: `${randomInt(94, 98)}%`,
           suggestedPrice: 'Free',
-          mediaNotice: 'Zero friction / Ego hook',
-          timeContextNote: 'Directly provokes male pride to type an immediate answer.'
+          mediaNotice: 'Ego-trigger provocation',
+          timeContextNote: 'Triggers masculine pride and fast conversational reply.'
         },
         {
           id: `var-${Date.now()}-3`,
           angle: 'intimate_gfe',
-          angleLabel: 'Micro-Story & Real Life (Cozy Domestic)',
-          message: isOneLine ? pickRandom(v3Hooks) : `${pickRandom(v3Hooks)}\n\njust crawled under the duvet, come keep me company tonight ${em2}`,
+          angleLabel: 'Real Life at Home (Cozy routine)',
+          message: isOneLine ? pickRandom(v3Hooks) : `${pickRandom(v3Hooks)}\n\ncome keep me company... 🤍`,
           estimatedOpenRate: `${randomInt(90, 95)}%`,
           suggestedPrice: 'Free',
-          mediaNotice: 'Lifestyle authenticity',
-          timeContextNote: 'Builds deep GFE connection through intimate domestic setting.'
+          mediaNotice: 'Natural lifestyle glimpse',
+          timeContextNote: `Reflects daytime routine without false nocturnal stereotypes.`
         },
         {
           id: `var-${Date.now()}-4`,
           angle: 'direct',
-          angleLabel: 'Hot Take & Debate Starter',
-          message: isOneLine ? pickRandom(v4Hooks) : `${pickRandom(v4Hooks)}\n\ni'm wearing my silk set right now on my bed... convince me otherwise ${em1}`,
+          angleLabel: 'Opinion & Debate Trigger',
+          message: isOneLine ? pickRandom(v4Hooks) : `${pickRandom(v4Hooks)}\n\nprove me wrong if you can... ${em1}`,
           estimatedOpenRate: `${randomInt(88, 93)}%`,
           suggestedPrice: 'Free',
-          mediaNotice: 'Conversation catalyst',
-          timeContextNote: 'Forces the fan to take a clear stance.'
+          mediaNotice: 'Debate spark',
+          timeContextNote: 'Drives replies by challenging the fan to take a stand.'
         },
         {
           id: `var-${Date.now()}-5`,
           angle: 'mysterious',
-          angleLabel: 'Spontaneous Bedroom Gaffe',
-          message: isOneLine ? pickRandom(v5Hooks) : `${pickRandom(v5Hooks)}\n\ndidn't even edit it out, just sitting here blushing on my bed ${em1}`,
-          estimatedOpenRate: `${randomInt(94, 98)}%`,
+          angleLabel: 'Spontaneous Unscripted Moment',
+          message: isOneLine ? pickRandom(v5Hooks) : `${pickRandom(v5Hooks)}\n\ndidn't even edit it, just blushed at the mirror 🙈`,
+          estimatedOpenRate: `${randomInt(93, 97)}%`,
           suggestedPrice: 'Free',
-          mediaNotice: 'Zero filter authenticity',
-          timeContextNote: 'Feels 100% candid, unscripted and real.'
+          mediaNotice: '100% natural spontaneity',
+          timeContextNote: 'Raw authenticity triggers high fan affinity.'
         },
         {
           id: `var-${Date.now()}-6`,
           angle: 'mysterious',
-          angleLabel: 'Late Night VIP Secret',
-          message: isOneLine ? pickRandom(v6Hooks) : `${pickRandom(v6Hooks)}\n\nnot sharing this anywhere else, strictly for my favorites ${em2}`,
+          angleLabel: 'Private Secret (VIP)',
+          message: isOneLine ? pickRandom(v6Hooks) : `${pickRandom(v6Hooks)}\n\nkeep this between us 🤍`,
           estimatedOpenRate: `${randomInt(92, 96)}%`,
           suggestedPrice: 'Free',
-          mediaNotice: 'VIP exclusivity',
-          timeContextNote: 'Makes the fan feel distinctly valued and chosen.'
+          mediaNotice: 'Private chat whisper',
+          timeContextNote: 'Creates special exclusive intimacy in private DMs.'
         }
       ];
     } else {
-      // US PAID PPV VARIATIONS
-      const ppv1 = [
-        `this silk set left zero to the imagination... unlock to see what my mirror saw tonight ${em1}`,
-        `tried on this new lingerie haul on my bed, it completely fell apart in the best way possible ${em2}`,
-        `filmed this solo session in front of my bedroom mirror... unlock and tell me what you think ${em1}`,
-        `honest confession: i was feeling dangerously naughty tonight on my bed... tap below to see ${em2}`
-      ];
+      // US PAID PPV VARIATIONS - TIME AWARE
+      let ppv1: string[] = [];
+      let ppv3: string[] = [];
+      let ppv6: string[] = [];
+
+      if (period === 'morning') {
+        ppv1 = [
+          `sunlight hitting my bed this morning, tried this sheer lace set on camera ${em1}`,
+          `morning bed try-on session... fabric doesn't leave anything to imagination ${em2}`
+        ];
+        ppv3 = [
+          `slow morning wake-up under the duvet, left the camera rolling just for you ${em1}`,
+          `morning stretches in sheer silk, recorded raw in daylight... unlock below 🤍`
+        ];
+        ppv6 = [
+          `my private morning tape before starting the day... tap to unlock 🤍`,
+          `secret bedroom clip recorded with the morning sun, unlock below ${em2}`
+        ];
+      } else if (period === 'lunch') {
+        // MID-DAY / LUNCH (13h)
+        ppv1 = [
+          `took advantage of my lunch break to test this sheer set in bright daylight ${em1}`,
+          `sneaked into my bedroom in the middle of the day, fabric is totally see-through in the sun ${em2}`,
+          `broad daylight mirror check during my lunch pause... tap to unlock ${em1}`
+        ];
+        ppv3 = [
+          `spontaneous lunch break solo on my bed, daylight streaming in... tap to join me ${em2}`,
+          `quick mid-day escape under my sheets, recorded unfiltered for you... unlock below 🤍`
+        ];
+        ppv6 = [
+          `this private mid-day clip stays strictly between us, tap to unlock before I delete 🤍`,
+          `a little secret recording from my lunch hour, unlock below ${em1}`
+        ];
+      } else if (period === 'afternoon') {
+        ppv1 = [
+          `lazy afternoon unboxing in front of the mirror, fabric is dangerously sheer in the sun ${em1}`,
+          `afternoon light in my room got out of hand, filmed the whole try-on ${em2}`
+        ];
+        ppv3 = [
+          `quiet afternoon in bed, gentle whispers and skin... tap to unlock ${em2}`,
+          `afternoon relaxation turned into something way too hot... unlock below 🤍`
+        ];
+        ppv6 = [
+          `private afternoon clip reserved strictly for this chat, unlock below 🤍`,
+          `exclusive footage from this afternoon on my bed, tap to unlock ${em1}`
+        ];
+      } else if (period === 'evening') {
+        ppv1 = [
+          `finally home, tried this silk set on in front of my mirror tonight ${em1}`,
+          `winding down tonight in sheer black lace... tap to see the full try-on ${em2}`
+        ];
+        ppv3 = [
+          `under the duvet thinking about you tonight, left the camera rolling the entire time ${em1}`,
+          `soft bedroom lighting, hands everywhere, recorded just for you... unlock below 🤍`
+        ];
+        ppv6 = [
+          `my absolute dirtiest secret recorded on my bed tonight... tap below 🤍`,
+          `this private evening tape stays between us only, unlock below ${em2}`
+        ];
+      } else {
+        // LATE NIGHT
+        ppv1 = [
+          `late night mirror check, silk completely sheer in the dark ${em1}`,
+          `unable to sleep tonight, tried this set on in my dark room... unlock below ${em2}`
+        ];
+        ppv3 = [
+          `whispering under the duvet late tonight, filmed everything just for you ${em1}`,
+          `late night insomnia tape on my bed... unlock below 🤍`
+        ];
+        ppv6 = [
+          `our midnight secret tape, tap below to unlock before I take it down 🤍`,
+          `filmed in the dark on my bed tonight, unlock below ${em1}`
+        ];
+      }
+
       const ppv2 = [
-        `bet everything you won't last 3 minutes watching this solo video on my bed 😈`,
-        `daring you to unlock this full clip and keep your composure... impossible ${em1}`,
-        `i know you can't resist a brunette teasing you like this in private... tap to unlock 🫦`,
-        `test your self-control right now, unlock below and come tell me if you gave in ${em2}`
+        `i bet you wouldn't last 2 minutes watching this full solo clip on my bed 😈`,
+        `dare you to unlock this full clip without folding... completely impossible ${em1}`,
+        `challenge your self-control right now, tap below and tell me if you folded ${em2}`
       ];
-      const ppv3 = [
-        `under the duvet thinking about you, left the camera rolling the entire time ${em1}`,
-        `slow intimate moments in my bed, whispers, skin, and nothing between us... tap to join me ${em2}`,
-        `soft bedroom lighting, hands everywhere, recorded just for you... unlock below 🤍`
-      ];
+
       const ppv4 = [
-        `my lingerie parcel finally arrived today... crash tested every piece on camera ${em1}`,
+        `my lingerie parcel finally arrived today ${locNoteUs}... crash tested every piece on camera ${em1}`,
         `unboxing this sheer lace haul directly on my bed, see the full try-on below ${em2}`,
-        `black lace against warm skin in my dressing room... tap to unlock the full clip ${em1}`
+        `silk against warm skin in my dressing room... tap to unlock the full clip ${em1}`
       ];
+
       const ppv5 = [
         `towel completely dropped on the bathroom tiles... steam on the glass, filmed everything ${em1}`,
-        `fresh out of the hot shower, wet hair and bare skin, couldn't stop myself from recording 🚿`,
+        `fresh out of the shower, wet hair and bare skin, couldn't stop myself from recording 🚿`,
         `bathroom mirror fogged up, caught in the act without clothes... unlock below 🫦`
-      ];
-      const ppv6 = [
-        `way too explicit to ever post on my main page, keeping this strictly in private chat ${em1}`,
-        `this private tape stays between us only, unlock before i get shy and take it down ${em2}`,
-        `my absolute dirtiest secret recorded in the dark on my bed tonight... tap below 🤍`
       ];
 
       variations = [
@@ -226,7 +353,7 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
           estimatedOpenRate: `${randomInt(92, 96)}%`,
           suggestedPrice: `$${priceVal}`,
           mediaNotice: mediaContext || 'Full bedroom video clip',
-          timeContextNote: 'High sensory appeal triggering fast unlock.'
+          timeContextNote: `Time aligned for ${resolvedTime.timeString} (${resolvedTime.periodLabelUs}).`
         },
         {
           id: `var-${Date.now()}-2`,
@@ -242,7 +369,7 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
           id: `var-${Date.now()}-3`,
           angle: 'intimate_gfe',
           angleLabel: 'Under The Sheets Complice (GFE)',
-          message: isOneLine ? pickRandom(ppv3) : `${pickRandom(ppv3)}\n\ntap below to unlock and spend the night with me ${em2}`,
+          message: isOneLine ? pickRandom(ppv3) : `${pickRandom(ppv3)}\n\ntap below to unlock and join me ${em2}`,
           estimatedOpenRate: `${randomInt(89, 94)}%`,
           suggestedPrice: `$${priceVal + 3}`,
           mediaNotice: 'Intimate bedroom soft tape',
@@ -281,59 +408,110 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
       ];
     }
   } else {
-    // FRENCH VARIATIONS
+    // FRENCH VARIATIONS - STRICT TIME ALIGNMENT
     if (!isPaid) {
-      // FRENCH FREE RETENTION / DM STARTERS
-      const v1Fr = [
-        `honnêtement je n'aurais jamais dû essayer cette nuisette devant mon miroir ce soir... le tissu est dangereusement transparent ${em1}`,
-        `roulée en boule dans mes draps pieds nus avec un pull trop large et rien en dessous... mon humeur préférée ${em1}`,
-        `petite confidence nocturne ${locNoteFr} : je parie tout ce que tu veux que tu ne tiendrais pas 5 minutes dans cette pièce ${em2}`,
-        `je viens de déballer un colis de lingerie fine sur mon lit, ça ne cache absolument rien ${em1}`,
-        `assise sur le parquet de ma chambre incapable de dormir en pensant à quelqu'un qui se reconnaîtra forcément ${em1}`,
-        `mes draps sont complètement défaits ce soir, si seulement tu voyais dans quel état je suis ${em2}`,
-        `insomnie totale sur mon lit... je me demandais si t'étais encore réveillé toi aussi ${em1}`
-      ];
+      // FRENCH FREE RETENTION / DM STARTERS - TIME AWARE
+      let v1Fr: string[] = [];
+      let v3Fr: string[] = [];
+      let v6Fr: string[] = [];
+
+      if (period === 'morning') {
+        v1Fr = [
+          `réveil tout doux dans mes draps ce matin, pull trop large et rien en dessous... mon humeur préférée ${em1}`,
+          `pas encore sortie de mon lit ce matin, la lumière traverse ma nuisette et me donne des idées ${em1}`,
+          `étirements du matin en soie sur mon lit, je parie que tu tiendrais pas 5 minutes à côté de moi ${em2}`,
+          `mon café fume sur la table de chevet, moi je traîne encore sous la couette en pensant à toi ${em1}`
+        ];
+        v3Fr = [
+          `rayon de soleil direct sur mon lit ce matin, musique douce et flemme totale de me lever ${em1}`,
+          `à peine réveillée, cheveux ébouriffés et zéro filtre... viens me dire bonjour mon cœur ${em2}`,
+          `début de journée tout doux dans ma chambre, j'avais envie de t'écrire avant de bouger ${em1}`
+        ];
+        v6Fr = [
+          `ma toute première pensée de la matinée est pour toi, je te confie ça avant d'entamer ma journée 🤍`,
+          `petit coucou matinal réservé uniquement à toi dans notre chat privé ${em1}`
+        ];
+      } else if (period === 'lunch') {
+        // MIDI / PAUSE DÉJEUNER (11h30 - 14h29, notamment 13h !)
+        v1Fr = [
+          `petite pause en plein milieu de ma journée ${locNoteFr} : je me suis isolée dans ma chambre en petite tenue ${em1}`,
+          `en pleine pause de midi sur mon lit, le soleil tape sur ma nuisette et ça ne cache absolument rien ${em1}`,
+          `j'ai déballé mon colis de lingerie pendant ma pause déjeuner, le tissu est dangereusement transparent ${em2}`,
+          `coupure de midi sous la couette en tenue très légère, je me demandais ce que tu faisais là maintenant ${em1}`
+        ];
+        v3Fr = [
+          `pause de midi au calme dans ma chambre, lumière du jour parfaite et aucune envie de reprendre ${em1}`,
+          `échappée belle dans mon lit en plein milieu de journée, viens me distraire un peu ${em2}`,
+          `soleil qui brille par la fenêtre, pause détente sur le dos en tenue légère ${em1}`
+        ];
+        v6Fr = [
+          `petite parenthèse intime volée en plein milieu de ma journée, rien que pour toi 🤍`,
+          `je profite de ma pause de midi pour t'envoyer ce petit secret en privé ${em1}`
+        ];
+      } else if (period === 'afternoon') {
+        v1Fr = [
+          `après-midi calme dans ma chambre ${locNoteFr}, la lumière du jour fait ressortir la dentelle de ma nuisette ${em1}`,
+          `flemme totale cet après-midi, je traîne en sous-vêtements sur mon lit en pensant fort à toi ${em1}`,
+          `petite pause canapé cet après-midi en tenue très légère, je parie que tu craquerais en un regard ${em2}`
+        ];
+        v3Fr = [
+          `après-midi détente chez moi, volets mi-clos pour garder la fraîcheur et ma musique préférée ${em1}`,
+          `pause cocooning cet après-midi sur mon lit, viens me raconter ce que tu fais ${em2}`
+        ];
+        v6Fr = [
+          `un petit mot doux glissé cet après-midi dans notre chat, rien que pour tes yeux 🤍`,
+          `moment privilégié en direct de ma chambre cet après-midi ${em1}`
+        ];
+      } else if (period === 'evening') {
+        v1Fr = [
+          `enfin posée ce soir à la maison, j'ai viré mes vêtements pour me glisser sous la couette ${em1}`,
+          `honnêtement je n'aurais jamais dû essayer cette nuisette devant mon miroir ce soir... c'est ultra transparent ${em1}`,
+          `mes draps sont complètement défaits ce soir, si seulement tu voyais dans quel état je suis ${em2}`
+        ];
+        v3Fr = [
+          `enfin rentrée ${locNoteFr}, thé chaud dans le lit, bougie allumée et ma dentelle la plus fine ${em1}`,
+          `soirée cocooning dans ma chambre, lumière tamisée et musique douce... viens me raconter ta journée ${em2}`
+        ];
+        v6Fr = [
+          `lumières tamisées dans la chambre ce soir, j'avais juste envie de partager cette douceur avec toi ${em2}`,
+          `ce moment de fin de journée restera strictement entre toi et moi 🤍`
+        ];
+      } else {
+        // NUIT TARDIVE (23h - 06h)
+        v1Fr = [
+          `insomnie totale sur mon lit... je me demandais si t'étais encore réveillé toi aussi ${em1}`,
+          `petite confidence nocturne ${locNoteFr} : je parie tout ce que tu veux que tu ne tiendrais pas 5 minutes ici ${em2}`,
+          `assise sur le parquet de ma chambre incapable de dormir en pensant à quelqu'un qui se reconnaîtra ${em1}`
+        ];
+        v3Fr = [
+          `chambre dans la pénombre, couette remontée, viens me chuchoter quelque chose ${em1}`,
+          `nuit blanche en nuisette satin, raconte-moi un secret pour que je m'endorme ${em2}`
+        ];
+        v6Fr = [
+          `je te confie ça tard cette nuit avant de m'endormir... garde ça précieusement pour nous 🤍`,
+          `seuls les vrais privilégiés reçoivent ce genre de message de ma part à cette heure-ci ${em2}`
+        ];
+      }
 
       const v2Fr = [
         `je suis convaincue à 100% que tu ne tiendrais pas 2 minutes à côté de moi habillée comme ça sous ma couette 😈`,
         `avoue que t'aurais zéro volonté si j'étais assise sur le bord de ton lit en ce moment même ${em1}`,
         `fais pas le mec insensible, je sais très bien que tu craquerais en un regard ${em2}`,
         `je te lance un défi : viens me regarder dans les yeux pendant 30 secondes sans rougir ${em1}`,
-        `t'as l'air très sûr de toi, mais entre nous... tu bégayerais direct face à moi ${em2}`,
-        `je parie que t'es pas cap de me dire ce que tu ferais si j'étais avec toi ce soir ${em1}`
-      ];
-
-      const v3Fr = [
-        `enfin posée ${locNoteFr} ${occStoryFr}, mes chaussures enlevées et cette robe qui glisse toute seule ${em1}`,
-        `mon selfie dans le miroir de la chambre est parti totalement en vrille ce soir ${em2}`,
-        `ambiance cosy, thé chaud dans le lit, bougie allumée et ma dentelle la plus fine sur la peau ${em1}`,
-        `je sors à peine d'un bain chaud, les cheveux encore humides et zéro filtre ce soir ${em1}`,
-        `étalée sur mon lit avec ma musique préférée, viens me raconter ta journée mon cœur ${em2}`,
-        `retour à l'appartement ${locNoteFr}, j'ai directement tout viré pour me glisser sous la couette ${em1}`
+        `t'as l'air très sûr de toi, mais entre nous... tu bégayerais direct face à moi ${em2}`
       ];
 
       const v4Fr = [
-        `tous ceux qui disent préférer un gros pyjama à un ensemble en soie noire se mentent à eux-mêmes ${em1}`,
-        `avis tranché : les soirées calmes au lit à deux détruisent n'importe quelle fête en boîte ${em2}`,
+        `tous ceux qui disent préférer un gros pyjama à un ensemble en soie se mentent à eux-mêmes ${em1}`,
         `vérité qui dérange : les hommes timides sont dix fois plus passionnés en privé ${em1}`,
-        `la sensation de la soie fraîche sur la peau nue au lit... c'est impossible de remettre des vrais vêtements après ça ${em2}`,
-        `dilemme du soir : dormir tôt ou continuer à te taquiner jusqu'à pas d'heure ? ${em1}`
+        `la sensation de la soie fraîche sur la peau nue... c'est impossible de remettre des vrais vêtements après ça ${em2}`
       ];
 
       const v5Fr = [
         `ma serviette a glissé toute seule sur le carrelage en sortant de la douche... j'ai rien coupé 🙈`,
-        `j'ai voulu faire un check rapide dans ma glace et le bouton de mon décolleté a sauté tout seul ${em1}`,
-        `un verre d'eau glacée renversé sur ma nuisette blanche... le résultat est totalement illégal ${em1}`,
-        `j'ai eu un fou rire toute seule en m'emmêlant dans mes draps en tenue beaucoup trop légère ${em2}`,
-        `ma robe s'est ouverte en plein milieu de ma vidéo... regarde ma tête gênée sur mon lit 🙈`
-      ];
-
-      const v6Fr = [
-        `ce moment restera strictement entre toi et moi, c'est hors de question que je publie ça sur mon feed public ${em1}`,
-        `lumières tamisées dans la chambre, j'avais juste envie de partager cette douceur avec toi ${em2}`,
-        `je te confie ça avant de m'endormir... garde ça précieusement pour nous 🤍`,
-        `petit moment volé tard ce soir, réservé uniquement à ceux qui comptent vraiment pour moi ${em1}`,
-        `seuls les vrais privilégiés reçoivent ce genre de message de ma part à cette heure-ci ${em2}`
+        `j'ai voulu faire un check rapide dans ma glace et le décolleté a sauté tout seul ${em1}`,
+        `un verre d'eau glacée renversé sur ma nuisette... le résultat est totalement illégal ${em1}`,
+        `j'ai eu un fou rire toute seule en m'emmêlant dans mes draps en tenue beaucoup trop légère ${em2}`
       ];
 
       variations = [
@@ -341,11 +519,11 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
           id: `var-${Date.now()}-1`,
           angle: 'direct',
           angleLabel: 'Confession & Aveu Intime (Affirmation)',
-          message: isOneLine ? pickRandom(v1Fr) : `${pickRandom(v1Fr)}\n\nje parie que t'aurais zéro self-control si t'étais avec moi sur mon lit ce soir... ${em2}`,
+          message: isOneLine ? pickRandom(v1Fr) : `${pickRandom(v1Fr)}\n\nje parie que t'aurais zéro self-control si t'étais avec moi sur mon lit en ce moment... ${em2}`,
           estimatedOpenRate: `${randomInt(93, 97)}%`,
           suggestedPrice: 'Gratuit',
           mediaNotice: 'Message direct offert / Déclencheur conversation',
-          timeContextNote: 'Déclenche une réponse immédiate grâce à une vraie vulnérabilité intime.'
+          timeContextNote: `Cohérence temporelle garantie pour ${resolvedTime.timeString} (${resolvedTime.periodLabelFr}).`
         },
         {
           id: `var-${Date.now()}-2`,
@@ -360,12 +538,12 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
         {
           id: `var-${Date.now()}-3`,
           angle: 'intimate_gfe',
-          angleLabel: 'Micro-Instant Maison & Vie Réelle',
-          message: isOneLine ? pickRandom(v3Fr) : `${pickRandom(v3Fr)}\n\nje viens de me glisser sous la couette, viens me tenir compagnie ce soir ${em2}`,
+          angleLabel: 'Micro-Instant Maison (Storytelling réel)',
+          message: isOneLine ? pickRandom(v3Fr) : `${pickRandom(v3Fr)}\n\nviens me tenir compagnie... 🤍`,
           estimatedOpenRate: `${randomInt(90, 95)}%`,
           suggestedPrice: 'Gratuit',
-          mediaNotice: 'Ancrage quotidien authentique',
-          timeContextNote: 'Crée un attachement émotionnel fort dans le cocon de sa chambre.'
+          mediaNotice: 'Scène de vie quotidienne spontanée',
+          timeContextNote: `Parfaitement synchronisé avec la lumière et l'heure (${resolvedTime.periodLabelFr}).`
         },
         {
           id: `var-${Date.now()}-4`,
@@ -391,7 +569,7 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
           id: `var-${Date.now()}-6`,
           angle: 'mysterious',
           angleLabel: 'Secret VIP & Exclusivité Complice',
-          message: isOneLine ? pickRandom(v6Fr) : `${pickRandom(v6Fr)}\n\nce clip ne sortira jamais d'ici, profite avant que je devienne trop timide 🤍`,
+          message: isOneLine ? pickRandom(v6Fr) : `${pickRandom(v6Fr)}\n\nce moment ne sortira jamais d'ici, profite avant que je devienne trop timide 🤍`,
           estimatedOpenRate: `${randomInt(92, 96)}%`,
           suggestedPrice: 'Gratuit',
           mediaNotice: 'Privilège VIP exclusif',
@@ -399,38 +577,102 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
         }
       ];
     } else {
-      // FRENCH PAID PPV VARIATIONS
-      const ppv1Fr = [
-        `cet ensemble en soie ne cache absolument rien... clique en dessous pour voir ce que mon miroir a vu ce soir ${em1}`,
-        `j'ai testé ma nouvelle lingerie commandée en ligne sur mon lit, le tissu est ultra fin... débloque vite ${em2}`,
-        `j'ai filmé ma session solo devant le grand miroir de la chambre... débloque et viens me donner ton avis ${em1}`,
-        `aveu sincère : j'avais une envie beaucoup trop chaude ce soir sur mes draps... clique en dessous ${em2}`
-      ];
+      // FRENCH PAID PPV VARIATIONS - TIME AWARE
+      let ppv1Fr: string[] = [];
+      let ppv3Fr: string[] = [];
+      let ppv6Fr: string[] = [];
+
+      if (period === 'morning') {
+        ppv1Fr = [
+          `la lumière du matin traverse cet ensemble en soie... débloque vite pour voir le rendu sur moi ${em1}`,
+          `séance essayage au réveil devant le grand miroir, le tissu ne cache absolument rien ${em2}`,
+          `aveu du matin : j'étais d'humeur beaucoup trop coquine dans mes draps... clique en dessous ${em1}`
+        ];
+        ppv3Fr = [
+          `réveil tout doux sous les draps, j'ai laissé tourner la caméra en direct du lit... clique pour me rejoindre ${em2}`,
+          `étirements sensuels du matin en nuisette fine, tout est filmé en pleine lumière... débloque vite 🤍`
+        ];
+        ppv6Fr = [
+          `mon petit clip privé du matin, clique en dessous avant que je ne le supprime 🤍`,
+          `vidéo intime au réveil dans notre chat privé, débloque mon secret ${em2}`
+        ];
+      } else if (period === 'lunch') {
+        // MIDI / 13h (LUNCHTIME - PLEIN JOUR)
+        ppv1Fr = [
+          `j'ai profité de ma pause midi pour tester ma nouvelle lingerie devant le miroir... clique en dessous pour voir le crash-test ${em1}`,
+          `en plein milieu de ma journée, le soleil traverse le tissu et on voit absolument tout... débloque vite ${em2}`,
+          `petite session solo improvisée pendant ma pause déjeuner dans ma chambre... clique pour débloquer ${em1}`,
+          `aveu sincère : j'avais une envie beaucoup trop chaude en rentrant déjeuner sur mon lit... clique en dessous ${em2}`
+        ];
+        ppv3Fr = [
+          `échappée sous la couette en pleine pause de midi, j'ai laissé tourner la caméra... clique pour me rejoindre ${em2}`,
+          `soleil qui tape sur mes draps, petite pause intime improvisée rien que pour toi mon cœur... débloque vite 🤍`
+        ];
+        ppv6Fr = [
+          `ma vidéo secrète de la pause de midi, débloque avant que je retourne à mes occupations 🤍`,
+          `ce clip de mi-journée restera strictement entre nous, débloque et viens me voir ${em2}`
+        ];
+      } else if (period === 'afternoon') {
+        ppv1Fr = [
+          `la lumière de l'après-midi dans mon miroir est juste incroyable... clique pour voir ce que je portais ${em1}`,
+          `j'ai testé ma nouvelle lingerie dans mon dressing cet après-midi, le tissu est ultra fin... débloque vite ${em2}`,
+          `session solo en plein après-midi sur mon lit... débloque et viens me donner ton avis ${em1}`
+        ];
+        ppv3Fr = [
+          `après-midi tranquille dans mes draps en train de penser fort à toi... clique pour me rejoindre ${em2}`,
+          `ambiance douce et intime cet après-midi sur mon lit... débloque vite 🤍`
+        ];
+        ppv6Fr = [
+          `ce clip d'après-midi restera strictement dans notre chat privé, débloque mon secret 🤍`,
+          `mon moment le plus spontané filmé cet après-midi sur mon lit... clique en dessous ${em2}`
+        ];
+      } else if (period === 'evening') {
+        ppv1Fr = [
+          `cet ensemble en soie ne cache absolument rien... clique en dessous pour voir ce que mon miroir a vu ce soir ${em1}`,
+          `j'ai testé ma nouvelle lingerie commandée en ligne sur mon lit, le tissu est ultra fin... débloque vite ${em2}`,
+          `j'ai filmé ma session solo devant le grand miroir de la chambre ce soir... débloque et viens me donner ton avis ${em1}`
+        ];
+        ppv3Fr = [
+          `dans mes draps défaits en train de penser fort à toi, j'ai laissé tourner la caméra tout le long ${em1}`,
+          `lumière tamisée dans ma chambre ce soir, j'ai tout filmé rien que pour toi mon cœur... débloque vite 🤍`
+        ];
+        ppv6Fr = [
+          `ce clip de ce soir restera strictement dans notre chat privé, débloque mon secret et viens me voir 🤍`,
+          `mon moment le plus secret filmé sur mon lit ce soir... clique en dessous avant que je supprime ${em2}`
+        ];
+      } else {
+        // NUIT TARDIVE
+        ppv1Fr = [
+          `insomnie coquine sur mon lit... clique en dessous pour voir ce que je faisais dans la pénombre ${em1}`,
+          `impossible de dormir cette nuit, j'ai tout filmé sous la couette... débloque vite ${em2}`
+        ];
+        ppv3Fr = [
+          `chambre dans le noir, chuchotements sous les draps, j'ai laissé tourner la caméra pour toi ${em1}`,
+          `vidéo nocturne intime sous la couette... clique pour me rejoindre cette nuit 🤍`
+        ];
+        ppv6Fr = [
+          `mon secret le plus brûlant filmé dans le noir sur mon lit cette nuit... clique en dessous 🤍`,
+          `cette vidéo privée de nuit reste strictement entre nous deux, débloque mon secret ${em2}`
+        ];
+      }
+
       const ppv2Fr = [
         `je parie tout ce que tu veux que tu ne tiens pas 3 minutes devant cette vidéo solo sur mon lit 😈`,
         `je te mets au défi de débloquer ce clip complet sans perdre totalement ton sang-froid... impossible ${em1}`,
         `je sais que tu ne résisteras jamais à une fille qui te tease comme ça en privé... débloque vite 🫦`,
         `teste ta résistance tout de suite, clique en dessous et viens m'avouer si t'as craqué ${em2}`
       ];
-      const ppv3Fr = [
-        `dans mes draps défaits en train de penser fort à toi, j'ai laissé tourner la caméra tout le long ${em1}`,
-        `des murmures intimes, de la peau nue et rien entre nous sous la couette... clique pour me rejoindre ${em2}`,
-        `lumière tamisée dans ma chambre, j'ai tout filmé rien que pour toi mon cœur... débloque vite 🤍`
-      ];
+
       const ppv4Fr = [
         `mon colis de lingerie fine est enfin arrivé ${locNoteFr}... j'ai fait le crash-test directement en vidéo ${em1}`,
         `unboxing en direct sur mon lit, la dentelle est tellement fine qu'on voit tout à travers ${em2}`,
         `séance essayage sans tabou dans mon dressing, clique en dessous pour voir le rendu sur moi ${em1}`
       ];
+
       const ppv5Fr = [
         `ma serviette a glissé toute seule sur le carrelage de la salle de bain... miroir embué, j'ai tout filmé 🚿`,
         `à peine sortie de la douche bien chaude, peau mouillée et aucun filtre... regarde comme j'avais chaud 🫦`,
         `serviette tombée en plein enregistrement dans ma salle de bain... débloque avant que je m'habille 🙈`
-      ];
-      const ppv6Fr = [
-        `ce clip restera strictement dans notre chat privé, c'est beaucoup trop chaud pour mon profil public ${em1}`,
-        `cette vidéo privée reste strictement entre nous deux, débloque mon secret et viens me voir 🤍`,
-        `mon moment le plus secret filmé dans le noir sur mon lit ce soir... clique en dessous avant que je supprime ${em2}`
       ];
 
       variations = [
@@ -442,98 +684,97 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
           estimatedOpenRate: `${randomInt(92, 96)}%`,
           suggestedPrice: `${priceVal}€`,
           mediaNotice: mediaContext || 'Vidéo solo chambre complète',
-          timeContextNote: 'Forte charge sensorielle qui incite à débloquer immédiatement.'
+          timeContextNote: `Aligné sur l'heure réelle : ${resolvedTime.timeString} (${resolvedTime.periodLabelFr}).`
         },
         {
           id: `var-${Date.now()}-2`,
           angle: 'tease_playful',
           angleLabel: 'Défi Ego & Pari de Résistance (PPV)',
-          message: isOneLine ? pickRandom(ppv2Fr) : `${pickRandom(ppv2Fr)}\n\nclique pour débloquer et viens me dire combien de temps t'as tenu ${em1}`,
+          message: isOneLine ? pickRandom(ppv2Fr) : `${pickRandom(ppv2Fr)}\n\nviens tester ton self-control, clique en dessous et dis-moi si t'as tenu 🫦`,
           estimatedOpenRate: `${randomInt(94, 98)}%`,
           suggestedPrice: `${Math.max(10, priceVal - 2)}€`,
           mediaNotice: 'Solo tape complète sur le lit',
-          timeContextNote: 'Le défi direct d\'ego pousse à l\'achat par fierté masculine.'
+          timeContextNote: 'Défi direct qui pousse à acheter pour prouver sa résistance masculine.'
         },
         {
           id: `var-${Date.now()}-3`,
           angle: 'intimate_gfe',
           angleLabel: 'Sous la Couette Complice (GFE)',
-          message: isOneLine ? pickRandom(ppv3Fr) : `${pickRandom(ppv3Fr)}\n\ndébloque mon petit cocon et viens passer la nuit avec moi ${em2}`,
+          message: isOneLine ? pickRandom(ppv3Fr) : `${pickRandom(ppv3Fr)}\n\nclique en dessous et viens passer ce moment avec moi 🥰`,
           estimatedOpenRate: `${randomInt(89, 94)}%`,
           suggestedPrice: `${priceVal + 3}€`,
-          mediaNotice: 'Vidéo douce & intime sous les draps',
-          timeContextNote: 'L\'intimité affective justifie un panier moyen plus élevé.'
+          mediaNotice: 'Vidéo intime douce sous les draps',
+          timeContextNote: `Ambiance intime adaptée à la lumière du moment (${resolvedTime.periodLabelFr}).`
         },
         {
           id: `var-${Date.now()}-4`,
           angle: 'direct',
-          angleLabel: 'Crash-Test Colis Lingerie (Dressing)',
-          message: isOneLine ? pickRandom(ppv4Fr) : `${pickRandom(ppv4Fr)}\n\nclique en dessous pour voir le crash-test lingerie sur moi ${em1}`,
-          estimatedOpenRate: `${randomInt(88, 93)}%`,
+          angleLabel: 'Crash-Test Colis Lingerie (Unboxing)',
+          message: isOneLine ? pickRandom(ppv4Fr) : `${pickRandom(ppv4Fr)}\n\nclique en dessous pour voir le crash-test complet sans censure 🥀`,
+          estimatedOpenRate: `${randomInt(89, 93)}%`,
           suggestedPrice: `${priceVal}€`,
-          mediaNotice: 'Crash-test lingerie dressing',
-          timeContextNote: 'Prétexte d\'achat en ligne très naturel et vendeur.'
+          mediaNotice: 'Crash-test essayage lingerie',
+          timeContextNote: 'Prétexte d\'achat en ligne très naturel et facile à relier au média.'
         },
         {
           id: `var-${Date.now()}-5`,
           angle: 'mysterious',
           angleLabel: 'Sortie de Douche / Serviette qui Tombe',
-          message: isOneLine ? pickRandom(ppv5Fr) : `${pickRandom(ppv5Fr)}\n\ndébloque vite avant que je m'habille 🫦`,
+          message: isOneLine ? pickRandom(ppv5Fr) : `${pickRandom(ppv5Fr)}\n\ndébloque vite avant que je me rhabille 🫦`,
           estimatedOpenRate: `${randomInt(93, 97)}%`,
           suggestedPrice: `${Math.max(10, priceVal - 1)}€`,
-          mediaNotice: 'Vidéo sortie de douche intime',
-          timeContextNote: 'Scénario salle de bain ultra immersif et convoité.'
+          mediaNotice: 'Média sortie de douche intime',
+          timeContextNote: 'Cadre salle de bain familier provoquant une impulsion d\'achat forte.'
         },
         {
           id: `var-${Date.now()}-6`,
           angle: 'mysterious',
-          angleLabel: 'Secret Absolu & FOMO VIP (PPV)',
-          message: isOneLine ? pickRandom(ppv6Fr) : `${pickRandom(ppv6Fr)}\n\ndébloque notre petit secret en privé 🤍`,
+          angleLabel: 'Secret Exclusif Chambre (VIP)',
+          message: isOneLine ? pickRandom(ppv6Fr) : `${pickRandom(ppv6Fr)}\n\ntout s'est passé sur mon lit... débloque mon secret et viens me voir 🤍`,
           estimatedOpenRate: `${randomInt(94, 98)}%`,
           suggestedPrice: `${priceVal + 4}€`,
-          mediaNotice: 'Média exclusif chambre VIP',
-          timeContextNote: 'L\'impression de privilège secret maximise le taux de conversion.'
+          mediaNotice: 'Média exclusif chat privé',
+          timeContextNote: 'L\'impression de privilège secret multiplie le taux de transformation.'
         }
       ];
     }
   }
 
-  // Generate dynamic recommendations
-  const sendTimeWindows = isUs
-    ? ['8:45 PM - 11:15 PM (Fan Local Time)', '9:15 PM - 11:45 PM (Fan Local Time)', '10:00 PM - 00:30 AM (Fan Local Time)']
-    : ['21h15 - 23h45 (Heure locale fan)', '21h45 - 00h15 (Heure locale fan)', '20h30 - 22h45 (Heure locale fan)'];
+  // Dynamic recommendations adhering to time of day
+  const bestTimeWindows = isUs
+    ? (period === 'lunch' ? [`${resolvedTime.timeString} (Mid-day peak, right now)`] : [`${resolvedTime.timeString} (${resolvedTime.periodLabelUs})`])
+    : (period === 'lunch' ? [`${resolvedTime.timeString} (Créneau midi / pause déjeuner actuel)`] : [`${resolvedTime.timeString} (${resolvedTime.periodLabelFr})`]);
 
-  const tipsFr = isPaid
-    ? [
-        `Prix conseillé : ${priceVal}€. Les essayages et vidéos maison convertissent 35% de plus que les shootings pros.`,
-        `Ce soir est idéal pour un PPV à ${priceVal}€ : relance avec une affirmation plutôt qu'une question pour doubler le taux d'ouverture.`,
-        `Privilégie le tarif de ${priceVal}€ : les fans en soirée solo débloquent dans les 12 premières minutes.`
-      ]
-    : [
-        `Push relationnel gratuit : les affirmations intimes génèrent 3x plus de réponses spontanées que les questions banales.`,
-        `Message d'engagement direct : commence sans majuscule pour renforcer l'authenticité d'un vrai SMS privé.`,
-        `Zéro friction : le fan est déjà en DM, ce ton complice réactive les conversations endormies.`
-      ];
+  const currentFanTimeLabel = isUs
+    ? `${resolvedTime.timeString} — ${resolvedTime.periodLabelUs}`
+    : `${resolvedTime.timeString} — ${resolvedTime.periodLabelFr}`;
 
-  const tipsUs = isPaid
-    ? [
-        `Recommended PPV tier: $${priceVal}. Casual home try-ons convert 38% better than commercial content.`,
-        `Prime evening window: punchy 1-line statements trigger instant unlocks without sounding salesy.`,
-        `Optimal pricing: $${priceVal}. Fans scrolling in bed make fast impulsive decisions.`
-      ]
-    : [
-        `Free relationship push: direct statements trigger 3x more replies than generic questions.`,
-        `Instant DM starter: natural lowercase rhythms feel like an authentic spontaneous text.`,
-        `Zero friction: fan is already in DMs, this provocative angle reactivates silent subscribers.`
-      ];
+  const tipText = isPaid
+    ? (isUs
+        ? `Recommended PPV tier: $${priceVal}. Daytime home clips convert +32% higher when anchored in real lunch/afternoon breaks.`
+        : `Prix conseillé : ${priceVal}€. Les messages envoyés pendant la pause de midi avec un cadre naturel convertissent très fort.`)
+    : (isUs
+        ? `Free retention push: mid-day conversational sparks generate 3x more replies than evening cliches.`
+        : `Push relationnel : les messages spontanés en milieu de journée obtiennent d'excellents retours car les fans sont sur leur téléphone.`);
 
   return {
     recommendations: {
-      bestSendTimeFanTz: pickRandom(sendTimeWindows),
-      currentFanLocalTime: isUs ? 'Prime evening unwinding hours' : 'Heure de pointe soirée détente',
-      pricingTip: pickRandom(isUs ? tipsUs : tipsFr),
-      safetyAudit: isUs ? '100% compliant with platform content guidelines.' : 'Conforme aux chartes de contenus OnlyFans & MYM.'
+      bestSendTimeFanTz: pickRandom(bestTimeWindows),
+      currentFanLocalTime: currentFanTimeLabel,
+      pricingTip: tipText,
+      safetyAudit: isUs ? '100% compliant with OnlyFans & MYM TOS.' : 'Conforme aux chartes de contenus OnlyFans & MYM.'
     },
     variations
   };
+}
+
+// Helpers
+function occStoryUs(occupation: string, isArt: boolean): string {
+  if (isArt) return 'surrounded by my art prints and sketches';
+  if (occupation) return 'finally taking a breather from work';
+  return 'in my bedroom';
+}
+
+function isArt(theme: string): boolean {
+  return theme.toLowerCase().includes('art');
 }

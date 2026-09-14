@@ -4,6 +4,7 @@ import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { generateDynamicPushVariations } from './src/services/dynamicPushEngine';
+import { getResolvedTime } from './src/utils/timeZoneHelper';
 
 dotenv.config();
 
@@ -187,6 +188,26 @@ Utilise des tournures familières, spontanées (ex: "coucou toi", "j’ai pensé
       ? 'Platform: OnlyFans (Fans receive mass message / PPV / Tip to unlock).'
       : 'Platform: MYM.fans (Média privé / Push payant / Message d’actualité privée).';
 
+    // Resolve exact clock & time of day period
+    const resolvedTime = getResolvedTime(
+      timeContext?.selectedTzZone || 'FR_CET',
+      timeContext?.useCurrentTime ?? true,
+      timeContext?.customHour,
+      timeContext?.customMinute
+    );
+
+    const timeRuleSystem = language === 'us'
+      ? `8. CRITICAL TIME CONTEXT & REAL-WORLD CLOCK (CURRENT FAN TIME: ${resolvedTime.timeString} - ${resolvedTime.periodLabelUs}):
+   - CURRENT LOCAL TIME: Exactly ${resolvedTime.timeString} (${resolvedTime.periodLabelUs}).
+   - FORBIDDEN CONTRADICTORY WORDS: Do NOT use ${resolvedTime.forbiddenWordsUs.map(w => `"${w}"`).join(', ')}.
+   - If it is daytime (such as 1:00 PM / lunch break / afternoon / morning), it is BROAD DAYLIGHT! NEVER speak of "night", "bedtime", "insomnia", "sleeping", or "dark room".
+   - REAL ATMOSPHERE REQUIRED: ${resolvedTime.contextualAtmosphereUs}`
+      : `8. RÈGLE CRITIQUE DE COHÉRENCE HORAIRE & LUMIÈRE DU JOUR (HEURE RÉELLE ACTUELLE DU FAN : ${resolvedTime.timeString} - ${resolvedTime.periodLabelFr}) :
+   - HEURE LOCALE EXACTE DU FAN : Il est actuellement ${resolvedTime.timeString} (${resolvedTime.periodLabelFr}).
+   - MOTS & EXPRESSIONS STRICTEMENT INTERDITS : Ne mentionne JAMAIS ${resolvedTime.forbiddenWordsFr.map(w => `"${w}"`).join(', ')}.
+   - INTERDICTION FORMELLE DE PARLER DE SOIRÉE OU DE NUIT EN PLEIN JOUR : S'il est 13h / midi / après-midi, il fait PLEIN JOUR ! Interdiction d'évoquer "ce soir", "cette nuit", "bonne nuit", "insomnie", "tu dors", "dans le noir" ou "lampe de chevet".
+   - AMBIANCE OBLIGATOIRE : ${resolvedTime.contextualAtmosphereFr}`;
+
     const systemPrompt = `Tu es une experte d'élite en copywriting et ghostwriting pour créatrices glamour & charme sur ${platform === 'onlyfans' ? 'OnlyFans' : 'MYM'}.
 Ton rôle est de générer des MASS MESSAGES ultra-performants qui relancent immédiatement les discussions et l'intérêt des fans.
 
@@ -224,7 +245,9 @@ ${varietyLevel === 'high' ? `
 7. STABILITÉ & SOBRIÉTÉ (VARIÉTÉ FAIBLE) :
    - Privilégie des formules éprouvées, sobres et prévisibles conformes au style habituel du modèle.` : `
 7. VARIÉTÉ ÉQUILIBRÉE :
-   - Assure un bon équilibre entre régularité du ton et fraîcheur des propositions.`)}`;
+   - Assure un bon équilibre entre régularité du ton et fraîcheur des propositions.`)}
+
+${timeRuleSystem}`;
 
     const userPrompt = `DÉTAILS DU PUSH À GÉNÉRER :
 - Modèle : ${modelProfile?.name || 'Créatrice'}, ${modelProfile?.age || 23} ans.
@@ -247,7 +270,9 @@ ${modelProfile?.tone ? `- Ton de voix : ${modelProfile.tone}` : ''}
 - Contexte du média (ou sujet de discussion) : "${mediaContext || 'Moment intime spontané dans la chambre'}"
 - Appel à l'action visé : ${isPaidPush ? callToAction : 'dm_talk (relancer la discussion en DM)'}
 - Cible : ${targetAudience}
-- Fuseau horaire ciblé : ${timeContext?.selectedTzZone || 'FR_CET'} (Heure locale fan : ${timeContext?.calculatedHour || 'Soirée'})
+- Fuseau horaire ciblé : ${resolvedTime.tzZone} (Heure locale fan : ${resolvedTime.timeString} — ${resolvedTime.periodLabelFr})
+- Ambiance temporelle obligatoire : ${resolvedTime.contextualAtmosphereFr}
+- Mots interdits en raison de l'heure : ${resolvedTime.forbiddenWordsFr.join(', ')}
 ${trainingContext}
 ${rulesContext}
 
@@ -257,8 +282,8 @@ FORMAT ATTENDU :
 Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 VARIATIONS (angles variés : 1. Confession/Aveu intime, 2. Taquinerie/Défi ego, 3. Micro-instant à la maison, 4. Opinion/Dilemme tranché, 5. Gaffe/Bêtise complice, 6. Secret exclusif/FOMO) :
 {
   "recommendations": {
-    "bestSendTimeFanTz": "ex: 21h45 - 23h15",
-    "currentFanLocalTime": "ex: Soirée détente à la maison",
+    "bestSendTimeFanTz": "${resolvedTime.timeString} (${resolvedTime.periodLabelFr})",
+    "currentFanLocalTime": "${resolvedTime.timeString} — ${resolvedTime.periodLabelFr}",
     "pricingTip": "${isPaidPush ? 'Conseil court sur le prix optimal du PPV' : 'Conseil d\'engagement : une affirmation forte génère 3x plus de réponses qu\'une question banale'}",
     "safetyAudit": "Note de conformité aux règles de la plateforme (termes validés)"
   },
@@ -411,9 +436,43 @@ Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 VARIATIONS (angles va
         platform,
         hotLevel,
         pushType,
-        sentenceCount
+        sentenceCount,
+        timeContext: {
+          ...timeContext,
+          selectedTzZone: resolvedTime.tzZone,
+          customHour: resolvedTime.hour,
+          customMinute: resolvedTime.minute,
+          calculatedHour: resolvedTime.timeString,
+          resolvedPeriod: resolvedTime.periodLabelFr
+        }
       });
       source = 'fallback_engine';
+    }
+
+    // Double safety sanitizer: if daytime, ensure no nocturnal hallucinations slipped through
+    if (parsedResult && Array.isArray(parsedResult.variations)) {
+      if (resolvedTime.period === 'morning' || resolvedTime.period === 'lunch' || resolvedTime.period === 'afternoon') {
+        parsedResult.variations = parsedResult.variations.map((v: any) => {
+          if (!v || typeof v.message !== 'string') return v;
+          let msg = v.message;
+          // French replacements
+          msg = msg.replace(/\bce soir\b/gi, "aujourd'hui");
+          msg = msg.replace(/\bcette nuit\b/gi, "en ce moment");
+          msg = msg.replace(/\bbonne nuit\b/gi, "bisous");
+          msg = msg.replace(/\binsomnie\b/gi, "petite pause");
+          msg = msg.replace(/\btu dors\b/gi, "t'es là");
+          msg = msg.replace(/\bdans le noir\b/gi, "dans ma chambre");
+          msg = msg.replace(/\blampe de chevet\b/gi, "lumière du soleil");
+          // English replacements
+          msg = msg.replace(/\btonight\b/gi, "today");
+          msg = msg.replace(/\blate night\b/gi, "right now");
+          msg = msg.replace(/\bgood night\b/gi, "talk soon");
+          msg = msg.replace(/\binsomnia\b/gi, "taking a break");
+          msg = msg.replace(/\bin the dark\b/gi, "in my room");
+          msg = msg.replace(/\bbedside lamp\b/gi, "daylight");
+          return { ...v, message: msg };
+        });
+      }
     }
 
     res.json({
@@ -422,9 +481,9 @@ Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 VARIATIONS (angles va
       source,
       variations: parsedResult.variations || [],
       recommendations: parsedResult.recommendations || {
-        bestSendTimeFanTz: '21h00 - 23h30',
-        currentFanLocalTime: 'Heure de pointe',
-        pricingTip: 'Maintiens entre 12€ et 20€ pour maximiser le taux de conversion immédiat.',
+        bestSendTimeFanTz: `${resolvedTime.timeString} (${resolvedTime.periodLabelFr})`,
+        currentFanLocalTime: `${resolvedTime.timeString} — ${resolvedTime.periodLabelFr}`,
+        pricingTip: 'Maintiens un tarif adapté pour maximiser le taux de conversion immédiat.',
         safetyAudit: 'Conforme aux politiques de contenus autorisés.'
       }
     });

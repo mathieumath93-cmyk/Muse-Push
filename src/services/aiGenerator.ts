@@ -10,6 +10,7 @@ import {
   VarietyLevel
 } from '../types';
 import { generateDynamicPushVariations } from './dynamicPushEngine';
+import { getResolvedTime, TzZone } from '../utils/timeZoneHelper';
 
 export interface GeneratePushParams {
   modelProfile: ModelProfile;
@@ -26,9 +27,12 @@ export interface GeneratePushParams {
   targetAudience: string;
   hotLevel: number;
   timeContext?: {
-    selectedTzZone?: string;
+    selectedTzZone?: TzZone;
+    customHour?: number;
+    customMinute?: number;
+    useCurrentTime?: boolean;
     calculatedHour?: string;
-    suggestedPeriod?: string;
+    resolvedPeriod?: string;
   };
   trainingExamples?: WinningExample[];
   agencyPlaybookRules?: string;
@@ -47,6 +51,27 @@ export function generateClientSimulatedVariations(params: {
   priceSuggestion?: number;
   platform: Platform;
   hotLevel: number;
+  pushType: 'paid_ppv' | 'free_retention';
+  sentenceCount: SentenceLength;
+  timeContext?: any;
+}): { recommendations: GenerationResult['recommendations']; variations: GeneratedVariation[] } {
+  return generateDynamicPushVariations({
+    modelProfile: { name: params.modelName } as any,
+    language: params.language,
+    mood: params.mood,
+    mediaContext: params.mediaContext,
+    priceSuggestion: params.priceSuggestion || 15,
+    platform: params.platform,
+    hotLevel: params.hotLevel,
+    pushType: params.pushType,
+    sentenceCount: params.sentenceCount,
+    timeContext: params.timeContext
+  });
+}
+
+function _unusedLegacyVariations(params: {
+  language: Language;
+  priceSuggestion?: number;
   pushType: 'paid_ppv' | 'free_retention';
   sentenceCount: SentenceLength;
 }): { recommendations: GenerationResult['recommendations']; variations: GeneratedVariation[] } {
@@ -474,12 +499,33 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
     openRouterConfig
   } = params;
 
+  // Resolve accurate clock and period
+  const resolvedTime = getResolvedTime(
+    timeContext?.selectedTzZone || 'FR_CET',
+    timeContext?.useCurrentTime ?? true,
+    timeContext?.customHour,
+    timeContext?.customMinute
+  );
+
+  const enrichedParams = {
+    ...params,
+    timeContext: {
+      ...timeContext,
+      selectedTzZone: resolvedTime.tzZone,
+      calculatedHour: resolvedTime.timeString,
+      resolvedPeriod: resolvedTime.periodLabelFr,
+      useCurrentTime: timeContext?.useCurrentTime ?? true,
+      customHour: resolvedTime.hour,
+      customMinute: resolvedTime.minute
+    }
+  };
+
   // 1. First attempt: call local server API (/api/generate-push)
   try {
     const serverResponse = await fetch('/api/generate-push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
+      body: JSON.stringify(enrichedParams)
     });
 
     if (serverResponse.ok) {
@@ -523,6 +569,14 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
           ? `\n6. STYLE SOBRE & ÉPROUVÉ (VARIÉTÉ FAIBLE) : Privilégie des formulations simples, classiques et rassurantes.`
           : `\n6. VARIÉTÉ NATURELLE : Équilibre harmonieux entre style habituel et renouvellement des accroches.`);
 
+      const timeConstraintDirect = language === 'us'
+        ? `\n7. STRICT TIME CONTEXT (${resolvedTime.timeString} - ${resolvedTime.periodLabelUs}):
+   - REAL TIME: Exactly ${resolvedTime.timeString} (${resolvedTime.periodLabelUs}).
+   - FORBIDDEN CONTRADICTORY WORDS: ${resolvedTime.forbiddenWordsUs.join(', ')}. If daytime, do NOT speak of night, bedtime or insomnia!`
+        : `\n7. COHÉRENCE HORAIRE STRICTE (${resolvedTime.timeString} - ${resolvedTime.periodLabelFr}) :
+   - HEURE RÉELLE : Il est ${resolvedTime.timeString} (${resolvedTime.periodLabelFr}).
+   - MOTS INTERDITS : ${resolvedTime.forbiddenWordsFr.join(', ')}. S'il fait jour (13h/midi/après-midi), INTERDICTION d'évoquer la nuit, "ce soir", "cette nuit", "insomnie" ou "tu dors" !`;
+
       const systemPrompt = `Tu es une experte d'élite en copywriting et ghostwriting pour créatrices glamour & charme sur ${platform === 'onlyfans' ? 'OnlyFans' : 'MYM'}.
 Ton rôle est de générer des MASS MESSAGES ultra-performants qui relancent immédiatement les discussions et l'intérêt des fans.
 
@@ -531,7 +585,7 @@ RÈGLES CAPITALES :
 2. LONGUEUR ULTRA-SIMPLE : Reste très direct, jusqu'à 1 seule phrase percutante.
 3. DÉCLENCHEURS DE RÉPONSE SANS QUESTIONS BATEAUX : Privilégie les affirmations piquantes, confidences intimes, taquineries sur l'ego et opinions tranchées.
 4. RÈGLE DU CADRE MÉDIA "100% MAISON" : Chambre, miroir, couette, lit, salle de bain, unboxing de lingerie reçue.
-5. VARIÉTÉ : STRICTEMENT 6 VARIATIONS DIFFÉRENTES.${noveltyConstraint}`;
+5. VARIÉTÉ : STRICTEMENT 6 VARIATIONS DIFFÉRENTES.${noveltyConstraint}${timeConstraintDirect}`;
 
       const userPrompt = `Modèle : ${modelProfile?.name || 'Créatrice'}, ${modelProfile?.age || 23} ans.
 ${modelProfile?.location ? `Localisation : ${modelProfile.location}` : ''}
@@ -546,6 +600,8 @@ Plateforme : ${platform}
 Langue : ${language === 'us' ? 'ANGLAIS US' : 'FRANÇAIS'}
 Vibe : ${mood} | Hot level : ${hotLevel}/5 | ${pushTypeDirective}
 ${lengthDirective}
+Heure fan réelle : ${resolvedTime.timeString} (${resolvedTime.periodLabelFr})
+Ambiance requise : ${resolvedTime.contextualAtmosphereFr}
 Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 6 objets).`;
 
       const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -579,8 +635,8 @@ Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 
               source: 'openrouter',
               modelUsed: selectedLlmModel,
               recommendations: parsed.recommendations || {
-                bestSendTimeFanTz: '21h00 - 23h30',
-                currentFanLocalTime: 'Soirée détente à domicile',
+                bestSendTimeFanTz: `${resolvedTime.timeString} (${resolvedTime.periodLabelFr})`,
+                currentFanLocalTime: `${resolvedTime.timeString} — ${resolvedTime.periodLabelFr}`,
                 pricingTip: isPaidPush ? `Prix conseillé: ${priceSuggestion || 15}€` : 'Push gratuit de relance',
                 safetyAudit: 'Termes conformes et validés'
               },
@@ -604,7 +660,8 @@ Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 
     platform,
     hotLevel,
     pushType,
-    sentenceCount
+    sentenceCount,
+    timeContext: enrichedParams.timeContext
   });
 
   return {
