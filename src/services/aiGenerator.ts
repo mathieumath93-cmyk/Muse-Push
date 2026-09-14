@@ -6,8 +6,10 @@ import {
   WinningExample, 
   GenerationResult,
   GeneratedVariation,
-  SentenceLength
+  SentenceLength,
+  VarietyLevel
 } from '../types';
+import { generateDynamicPushVariations } from './dynamicPushEngine';
 
 export interface GeneratePushParams {
   modelProfile: ModelProfile;
@@ -15,6 +17,7 @@ export interface GeneratePushParams {
   language: Language;
   pushType: 'paid_ppv' | 'free_retention';
   sentenceCount: SentenceLength;
+  varietyLevel?: VarietyLevel;
   mood: MoodCategory;
   mediaType: string;
   priceSuggestion?: number;
@@ -457,6 +460,7 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
     language,
     pushType,
     sentenceCount,
+    varietyLevel = 'high',
     mood,
     mediaType,
     priceSuggestion,
@@ -492,7 +496,10 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
   // 2. Second attempt: Direct OpenRouter call if user entered their API key
   const apiKey = openRouterConfig?.apiKey?.trim() || (typeof window !== 'undefined' ? localStorage.getItem('musepush_openrouter_key') || '' : '');
   const selectedLlmModel = openRouterConfig?.model || 'anthropic/claude-3.5-sonnet';
-  const temperature = openRouterConfig?.temperature ?? 0.85;
+  
+  // Dynamic temperature based on Variety Level: low -> 0.4, medium -> 0.75, high -> 1.10
+  const calculatedTemp = varietyLevel === 'high' ? 1.10 : (varietyLevel === 'low' ? 0.40 : 0.75);
+  const temperature = openRouterConfig?.temperature ?? calculatedTemp;
 
   if (apiKey) {
     try {
@@ -507,6 +514,15 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
           ? 'LONGUEUR : ULTRA-COURT (1 à 2 phrases max, 15 à 25 mots).'
           : 'LONGUEUR : COURT (2 phrases max).');
 
+      const noveltyConstraint = varietyLevel === 'high'
+        ? `\n6. CONTRAINTE IMPÉRATIVE DE NOUVEAUTÉ & DIVERSITÉ MAXIMALE (VARIÉTÉ ÉLEVÉE ACTIVE) :
+   - INTERDICTION FORMELLE DE RÉPÉTITION : Ne réutilise aucune tournure stéréotypée ou formule cliché déjà vue.
+   - 6 ANGLES INÉDITS : Chacune des 6 variations doit aborder la situation sous un angle psychologique et un style de phrase radicalement distincts des autres.
+   - CRÉATIVITÉ ET SURPRISE : Métaphores fraîches, confessions inattendues, auto-dérision complice et détails sensoriels authentiques.`
+        : (varietyLevel === 'low'
+          ? `\n6. STYLE SOBRE & ÉPROUVÉ (VARIÉTÉ FAIBLE) : Privilégie des formulations simples, classiques et rassurantes.`
+          : `\n6. VARIÉTÉ NATURELLE : Équilibre harmonieux entre style habituel et renouvellement des accroches.`);
+
       const systemPrompt = `Tu es une experte d'élite en copywriting et ghostwriting pour créatrices glamour & charme sur ${platform === 'onlyfans' ? 'OnlyFans' : 'MYM'}.
 Ton rôle est de générer des MASS MESSAGES ultra-performants qui relancent immédiatement les discussions et l'intérêt des fans.
 
@@ -515,7 +531,7 @@ RÈGLES CAPITALES :
 2. LONGUEUR ULTRA-SIMPLE : Reste très direct, jusqu'à 1 seule phrase percutante.
 3. DÉCLENCHEURS DE RÉPONSE SANS QUESTIONS BATEAUX : Privilégie les affirmations piquantes, confidences intimes, taquineries sur l'ego et opinions tranchées.
 4. RÈGLE DU CADRE MÉDIA "100% MAISON" : Chambre, miroir, couette, lit, salle de bain, unboxing de lingerie reçue.
-5. VARIÉTÉ : STRICTEMENT 6 VARIATIONS DIFFÉRENTES.`;
+5. VARIÉTÉ : STRICTEMENT 6 VARIATIONS DIFFÉRENTES.${noveltyConstraint}`;
 
       const userPrompt = `Modèle : ${modelProfile?.name || 'Créatrice'}, ${modelProfile?.age || 23} ans.
 ${modelProfile?.location ? `Localisation : ${modelProfile.location}` : ''}
@@ -578,9 +594,9 @@ Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 
     }
   }
 
-  // 3. Third step: High-fidelity calibrated variations (6 variations, 100% home context, affirmations & ego teasers)
-  const simulated = generateClientSimulatedVariations({
-    modelName: modelProfile?.name || 'Eden',
+  // 3. Third step: High-fidelity dynamic variations (regenerates brand new, fresh variations on every click)
+  const dynamicResult = generateDynamicPushVariations({
+    modelProfile,
     language,
     mood,
     mediaContext,
@@ -594,8 +610,8 @@ Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 
   return {
     success: true,
     source: 'fallback_engine',
-    modelUsed: 'MusePush Engine (Home-Studio Calibrated)',
-    recommendations: simulated.recommendations,
-    variations: simulated.variations
+    modelUsed: 'MusePush Dynamic Creative Engine',
+    recommendations: dynamicResult.recommendations,
+    variations: dynamicResult.variations
   };
 }

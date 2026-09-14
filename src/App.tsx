@@ -121,6 +121,7 @@ export default function App() {
     language: 'fr',
     pushType: 'paid_ppv',
     sentenceCount: 'one_line',
+    varietyLevel: 'high',
     mood: 'hot',
     mediaType: 'video_clip',
     priceSuggestion: 15,
@@ -133,6 +134,18 @@ export default function App() {
       useCurrentTime: true
     }
   });
+
+  const handleConfigChange = (updated: Partial<PushRequestConfig>) => {
+    setConfig(prev => {
+      const next = { ...prev, ...updated };
+      if (updated.varietyLevel) {
+        // Auto-adjust temperature based on varietyLevel (low: 0.40, medium: 0.75, high: 1.10)
+        const autoTemp = updated.varietyLevel === 'high' ? 1.10 : (updated.varietyLevel === 'low' ? 0.40 : 0.75);
+        setTemperature(autoTemp);
+      }
+      return next;
+    });
+  };
 
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
@@ -205,6 +218,21 @@ export default function App() {
     });
   };
 
+  const handleDuplicateModel = (model: ModelProfile) => {
+    const clone: ModelProfile = {
+      ...model,
+      id: 'model-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      name: `${model.name} (Copie)`,
+    };
+    const updated = [clone, ...models];
+    setModels(updated);
+    setSelectedModelId(clone.id);
+    localStorage.setItem('musepush_models', JSON.stringify(updated));
+    saveModelToCloud(clone).catch(err => {
+      console.error('[Firebase] Error saving cloned model to cloud:', err);
+    });
+  };
+
   const handleAddTrainingExample = (item: WinningExample) => {
     const updated = [item, ...trainingExamples];
     setTrainingExamples(updated);
@@ -244,12 +272,18 @@ export default function App() {
         ex => ex.language === language || ex.platform === platform
       ).slice(0, 4);
 
+      // Auto-adjust temperature based on varietyLevel (low: 0.40, medium: 0.75, high: 1.10)
+      const effectiveTemperature = config.varietyLevel === 'high'
+        ? 1.10
+        : (config.varietyLevel === 'low' ? 0.40 : 0.75);
+
       const result = await executePushGeneration({
         modelProfile: selectedModel,
         platform,
         language,
         pushType: config.pushType,
         sentenceCount: config.sentenceCount,
+        varietyLevel: config.varietyLevel || 'high',
         mood: selectedMood,
         mediaType: config.mediaType,
         priceSuggestion: config.priceSuggestion,
@@ -263,7 +297,7 @@ export default function App() {
         openRouterConfig: {
           apiKey: openRouterApiKey,
           model: selectedLlmModel,
-          temperature
+          temperature: effectiveTemperature
         }
       });
 
@@ -320,11 +354,12 @@ export default function App() {
                 selectedModelId={selectedModelId}
                 onSelectModel={handleSelectModel}
                 onEditModel={handleOpenEditModel}
+                onDuplicateModel={handleDuplicateModel}
                 onDeleteModel={handleDeleteModel}
                 selectedMood={selectedMood}
                 onSelectMood={setSelectedMood}
                 config={config}
-                onChangeConfig={(updated) => setConfig(prev => ({ ...prev, ...updated }))}
+                onChangeConfig={handleConfigChange}
                 language={language}
                 onSelectLanguage={setLanguage}
                 onOpenAddModel={handleOpenAddModel}
@@ -353,9 +388,16 @@ export default function App() {
 
                 <div className="flex items-center justify-between px-2 text-[11px] text-zinc-500">
                   <span className="flex items-center gap-1">
-                    <Trophy className="w-3 h-3 text-amber-400" /> {trainingExamples.length} exemples d'entraînement injectés
+                    <Trophy className="w-3 h-3 text-amber-400" /> {trainingExamples.length} exemples d'entraînement
                   </span>
-                  <span>{openRouterApiKey ? 'OpenRouter Live' : 'Moteur Studio Intégré'}</span>
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    <span className="text-zinc-400">
+                      Variété : <strong className={config.varietyLevel === 'high' ? 'text-amber-400 font-semibold' : config.varietyLevel === 'low' ? 'text-blue-400' : 'text-zinc-200'}>
+                        {config.varietyLevel === 'high' ? 'Élevée (T: 1.10)' : config.varietyLevel === 'low' ? 'Faible (T: 0.40)' : 'Moyenne (T: 0.75)'}
+                      </strong>
+                    </span>
+                  </span>
                 </div>
               </div>
             </div>

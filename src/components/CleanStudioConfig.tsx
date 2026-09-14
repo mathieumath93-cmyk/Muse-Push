@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ModelProfile, MoodCategory, PushRequestConfig, PushType, SentenceLength } from '../types';
+import { ModelProfile, MoodCategory, PushRequestConfig, PushType, SentenceLength, VarietyLevel } from '../types';
 import { MOODS } from '../data';
 import { 
   Heart, 
@@ -22,7 +22,12 @@ import {
   Trash2,
   Globe,
   UserCheck,
-  Pencil
+  Pencil,
+  Search,
+  Copy,
+  ShieldCheck,
+  Scale,
+  X as CloseIcon
 } from 'lucide-react';
 
 interface CleanStudioConfigProps {
@@ -30,6 +35,7 @@ interface CleanStudioConfigProps {
   selectedModelId: string;
   onSelectModel: (id: string) => void;
   onEditModel?: (model: ModelProfile) => void;
+  onDuplicateModel?: (model: ModelProfile) => void;
   onDeleteModel?: (id: string) => void;
   selectedMood: MoodCategory;
   onSelectMood: (mood: MoodCategory) => void;
@@ -45,6 +51,7 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
   selectedModelId,
   onSelectModel,
   onEditModel,
+  onDuplicateModel,
   onDeleteModel,
   selectedMood,
   onSelectMood,
@@ -55,7 +62,26 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
   onOpenAddModel
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [searchPersona, setSearchPersona] = useState('');
+  const [filterLang, setFilterLang] = useState<'all' | 'fr' | 'us'>('all');
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const currentVariety: VarietyLevel = config.varietyLevel || 'high';
   const selectedModel = models.find(m => m.id === selectedModelId) || models[0];
+
+  const filteredModels = models.filter(m => {
+    if (filterLang === 'fr' && m.defaultLanguage !== 'fr') return false;
+    if (filterLang === 'us' && m.defaultLanguage !== 'us') return false;
+    if (!searchPersona.trim()) return true;
+    const q = searchPersona.toLowerCase().trim();
+    return (
+      m.name.toLowerCase().includes(q) ||
+      (m.location && m.location.toLowerCase().includes(q)) ||
+      (m.realLifeOccupation && m.realLifeOccupation.toLowerCase().includes(q)) ||
+      (m.tone && m.tone.toLowerCase().includes(q)) ||
+      (m.themes && m.themes.some(t => t.toLowerCase().includes(q)))
+    );
+  });
 
   const getMoodIcon = (iconName: string) => {
     switch (iconName) {
@@ -213,138 +239,362 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
         </div>
       </div>
 
-      {/* 3. Modèle & Voix - Visible Card Grid & Instant Switcher */}
+      {/* 3. Option Variété (Faible / Moyenne / Élevée) */}
       <div>
-        <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center justify-between mb-1.5">
           <label className="text-xs font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
-            <UserCheck className="w-3.5 h-3.5 text-rose-400" />
-            <span>3. Modèle & Voix</span>
-            <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
-              {models.length} {models.length > 1 ? 'profils' : 'profil'}
-            </span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>3. Variété créative & Nouveauté</span>
           </label>
+          <span className="text-[10px] text-zinc-400 flex items-center gap-1">
+            {currentVariety === 'high' ? (
+              <span className="text-amber-400 font-semibold flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Nouveauté Maximale (T: 1.10)
+              </span>
+            ) : currentVariety === 'medium' ? (
+              <span className="text-zinc-300 font-medium">Équilibrée (T: 0.75)</span>
+            ) : (
+              <span className="text-blue-300 font-medium">Sobre & Stable (T: 0.40)</span>
+            )}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-1.5">
           <button
             type="button"
-            onClick={onOpenAddModel}
-            className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 transition px-2 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 cursor-pointer"
+            onClick={() => onChangeConfig({ varietyLevel: 'low' })}
+            className={`py-2 px-2 rounded-xl border text-center transition flex flex-col items-center justify-center cursor-pointer ${
+              currentVariety === 'low'
+                ? 'bg-blue-500/20 border-blue-500/60 text-white ring-1 ring-blue-500/40 shadow-sm'
+                : 'bg-white/[0.02] border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+            }`}
           >
-            <Plus className="w-3 h-3" /> Ajouter un modèle
+            <div className="flex items-center gap-1 mb-0.5">
+              <ShieldCheck className="w-3 h-3 text-blue-400" />
+              <span className="text-xs font-bold">Faible</span>
+            </div>
+            <span className="text-[9px] text-zinc-400">Classique & Stable</span>
+            <span className="text-[8px] font-mono text-zinc-500 mt-0.5">T: 0.40</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChangeConfig({ varietyLevel: 'medium' })}
+            className={`py-2 px-2 rounded-xl border text-center transition flex flex-col items-center justify-center cursor-pointer ${
+              currentVariety === 'medium'
+                ? 'bg-indigo-500/20 border-indigo-500/60 text-white ring-1 ring-indigo-500/40 shadow-sm'
+                : 'bg-white/[0.02] border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+            }`}
+          >
+            <div className="flex items-center gap-1 mb-0.5">
+              <Scale className="w-3 h-3 text-indigo-400" />
+              <span className="text-xs font-bold">Moyenne</span>
+            </div>
+            <span className="text-[9px] text-zinc-400">Équilibré & Fluide</span>
+            <span className="text-[8px] font-mono text-zinc-500 mt-0.5">T: 0.75</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChangeConfig({ varietyLevel: 'high' })}
+            className={`py-2 px-2 rounded-xl border text-center transition flex flex-col items-center justify-center cursor-pointer relative ${
+              currentVariety === 'high'
+                ? 'bg-amber-500/20 border-amber-500/60 text-white ring-1 ring-amber-500/40 shadow-md shadow-amber-500/10'
+                : 'bg-white/[0.02] border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+            }`}
+          >
+            {currentVariety === 'high' && (
+              <span className="absolute -top-1.5 -right-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black text-[8px] font-black uppercase tracking-wider shadow">
+                Actif
+              </span>
+            )}
+            <div className="flex items-center gap-1 mb-0.5">
+              <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
+              <span className="text-xs font-bold text-amber-300">Élevée</span>
+            </div>
+            <span className="text-[9px] text-amber-200/90 font-medium">Nouveauté max</span>
+            <span className="text-[8px] font-mono text-amber-300/80 mt-0.5">T: 1.10</span>
           </button>
         </div>
 
-        {/* Responsive Grid: All models are directly visible and easy to switch */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {models.map(m => {
-            const isSel = m.id === selectedModelId;
-            const isCustom = m.id.startsWith('model-');
-            return (
-              <div
-                key={m.id}
-                onClick={() => onSelectModel(m.id)}
-                className={`group relative p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                  isSel
-                    ? 'bg-rose-500/15 border-rose-500/70 shadow-lg shadow-rose-500/10 ring-2 ring-rose-500/30'
-                    : 'bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.05] text-zinc-400'
+        {/* Feedback contextuel dynamique */}
+        {currentVariety === 'high' ? (
+          <div className="mt-2 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-transparent border border-amber-500/30 flex items-start gap-2 text-xs">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-[11px] text-zinc-200 leading-snug">
+              <span className="font-bold text-amber-300">Contrainte de nouveauté active :</span> Température LLM ajustée à <span className="font-mono text-white font-bold">1.10</span> et contrainte stricte anti-répétition injectée dans le prompt système pour renouveler 100% des angles, métaphores et anecdotes.
+            </div>
+          </div>
+        ) : currentVariety === 'low' ? (
+          <div className="mt-2 p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-2 text-[11px] text-blue-300">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <span><strong>Mode Stabilité :</strong> Température LLM réduite à <span className="font-mono text-white font-bold">0.40</span> pour reproduire fidèlement des tournures sobres et éprouvées.</span>
+          </div>
+        ) : (
+          <div className="mt-2 p-2 rounded-xl bg-white/[0.02] border border-white/10 flex items-center gap-2 text-[11px] text-zinc-400">
+            <Scale className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+            <span><strong>Mode Équilibré :</strong> Température standard à <span className="font-mono text-white font-bold">0.75</span> pour un flux d'accroches naturel.</span>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Profils Personas (Support illimité, recherche, filtres et duplication) */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+              <UserCheck className="w-3.5 h-3.5 text-rose-400" />
+              <span>4. Profils Personas</span>
+            </label>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 text-zinc-300 border border-white/10">
+              {models.length} {models.length > 1 ? 'personas' : 'persona'}
+            </span>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+              <Sparkles className="w-2.5 h-2.5" /> Illimité
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenAddModel}
+            className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 transition px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" /> Ajouter un persona
+          </button>
+        </div>
+
+        {/* Search & Quick Filter Bar for Unlimited Personas */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 mb-2.5">
+          <div className="relative flex-1">
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchPersona}
+              onChange={(e) => setSearchPersona(e.target.value)}
+              placeholder="Rechercher un persona (nom, ville, métier, thèmes)..."
+              className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-black/40 border border-white/10 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-rose-500/50"
+            />
+            {searchPersona && (
+              <button
+                type="button"
+                onClick={() => setSearchPersona('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-0.5"
+              >
+                <CloseIcon className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center bg-black/40 p-0.5 rounded-lg border border-white/10 text-[10px]">
+              <button
+                type="button"
+                onClick={() => setFilterLang('all')}
+                className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
+                  filterLang === 'all'
+                    ? 'bg-white/10 text-white font-bold'
+                    : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="relative">
-                    <img
-                      src={m.avatar}
-                      alt={m.name}
-                      className={`w-9 h-9 rounded-xl object-cover ring-1 ${
-                        isSel ? 'ring-rose-500 shadow-md' : 'ring-white/10'
-                      }`}
-                      referrerPolicy="no-referrer"
-                    />
-                    {isSel && (
-                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[8px] font-bold shadow">
-                        ✓
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40 border border-white/5 text-zinc-300">
-                      {m.defaultLanguage === 'us' ? '🇺🇸' : '🇫🇷'}
-                    </span>
-                    {onEditModel && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEditModel(m);
-                        }}
-                        title="Modifier ce persona"
-                        className="opacity-60 group-hover:opacity-100 p-1 rounded-md text-zinc-400 hover:text-indigo-400 hover:bg-white/10 transition cursor-pointer"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                    )}
-                    {onDeleteModel && (isCustom || models.length > 1) && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Supprimer le profil ${m.name} ?`)) {
-                            onDeleteModel(m.id);
-                          }
-                        }}
-                        title="Supprimer ce profil"
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-white/10 transition cursor-pointer"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold truncate ${isSel ? 'text-white' : 'text-zinc-200'}`}>
-                      {m.name}
-                    </span>
-                    <span className="text-[10px] text-zinc-500">
-                      {m.age} ans
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-zinc-400 truncate mt-0.5">
-                    {m.favoriteEmojis?.slice(0, 3).join(' ')} • {m.realLifeOccupation?.split(' ')[0] || 'Modèle'}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Quick "+ Ajouter" card in grid */}
-          <button
-            type="button"
-            onClick={onOpenAddModel}
-            className="p-2.5 rounded-xl border border-dashed border-white/15 bg-white/[0.01] hover:bg-rose-500/5 hover:border-rose-500/40 text-zinc-400 hover:text-rose-300 transition flex flex-col items-center justify-center gap-1 text-center min-h-[72px] cursor-pointer"
-          >
-            <div className="p-1 rounded-lg bg-white/5 text-zinc-400 group-hover:text-rose-400">
-              <Plus className="w-4 h-4" />
+                Tous ({models.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterLang('fr')}
+                className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
+                  filterLang === 'fr'
+                    ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                🇫🇷 FR ({models.filter(m => m.defaultLanguage === 'fr').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterLang('us')}
+                className={`px-2 py-1 rounded font-medium transition cursor-pointer ${
+                  filterLang === 'us'
+                    ? 'bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                🇺🇸 US ({models.filter(m => m.defaultLanguage === 'us').length})
+              </button>
             </div>
-            <span className="text-[11px] font-medium">+ Autre Modèle</span>
-          </button>
+
+            {models.length > 6 && (
+              <button
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-[10px] px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-zinc-200 border border-white/5 transition"
+              >
+                {isExpanded ? 'Réduire' : `Tout voir (${filteredModels.length})`}
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Selected model active summary & quick language switch */}
+        {/* Scrollable Responsive Grid for Unlimited Personas */}
+        {filteredModels.length === 0 ? (
+          <div className="p-6 rounded-xl border border-white/5 bg-white/[0.01] text-center text-xs text-zinc-400 space-y-2">
+            <p>Aucun persona ne correspond à "{searchPersona}".</p>
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSearchPersona('')}
+                className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-zinc-200 text-xs"
+              >
+                Effacer la recherche
+              </button>
+              <button
+                type="button"
+                onClick={onOpenAddModel}
+                className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold border border-rose-500/30"
+              >
+                + Créer "{searchPersona}"
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className={`grid grid-cols-2 sm:grid-cols-3 gap-2 ${
+            isExpanded ? '' : 'max-h-[300px] overflow-y-auto pr-1'
+          }`}>
+            {filteredModels.map(m => {
+              const isSel = m.id === selectedModelId;
+              const isCustom = m.id.startsWith('model-');
+              return (
+                <div
+                  key={m.id}
+                  onClick={() => onSelectModel(m.id)}
+                  className={`group relative p-2.5 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                    isSel
+                      ? 'bg-rose-500/15 border-rose-500/70 shadow-lg shadow-rose-500/10 ring-2 ring-rose-500/30'
+                      : 'bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.05] text-zinc-400'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="relative">
+                      <img
+                        src={m.avatar}
+                        alt={m.name}
+                        className={`w-9 h-9 rounded-xl object-cover ring-1 ${
+                          isSel ? 'ring-rose-500 shadow-md' : 'ring-white/10'
+                        }`}
+                        referrerPolicy="no-referrer"
+                      />
+                      {isSel && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[8px] font-bold shadow">
+                          ✓
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40 border border-white/5 text-zinc-300">
+                        {m.defaultLanguage === 'us' ? '🇺🇸' : '🇫🇷'}
+                      </span>
+                      {onDuplicateModel && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDuplicateModel(m);
+                          }}
+                          title="Dupliquer ce persona"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-zinc-400 hover:text-emerald-400 hover:bg-white/10 transition cursor-pointer"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      )}
+                      {onEditModel && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditModel(m);
+                          }}
+                          title="Modifier ce persona"
+                          className="opacity-60 group-hover:opacity-100 p-1 rounded-md text-zinc-400 hover:text-indigo-400 hover:bg-white/10 transition cursor-pointer"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                      {onDeleteModel && (isCustom || models.length > 1) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Supprimer le profil ${m.name} ?`)) {
+                              onDeleteModel(m.id);
+                            }
+                          }}
+                          title="Supprimer ce profil"
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-white/10 transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-bold truncate ${isSel ? 'text-white' : 'text-zinc-200'}`}>
+                        {m.name}
+                      </span>
+                      <span className="text-[10px] text-zinc-500">
+                        {m.age} ans
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-zinc-400 truncate mt-0.5">
+                      {m.location ? `📍 ${m.location} • ` : ''}{m.realLifeOccupation?.split('/')[0]?.trim() || 'Modèle'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Quick "+ Ajouter" card in grid */}
+            <button
+              type="button"
+              onClick={onOpenAddModel}
+              className="p-2.5 rounded-xl border border-dashed border-white/15 bg-white/[0.01] hover:bg-rose-500/5 hover:border-rose-500/40 text-zinc-400 hover:text-rose-300 transition flex flex-col items-center justify-center gap-1 text-center min-h-[72px] cursor-pointer"
+            >
+              <div className="p-1 rounded-lg bg-white/5 text-zinc-400 group-hover:text-rose-400">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="text-[11px] font-medium">+ Autre Modèle</span>
+            </button>
+          </div>
+        )}
+
+        {/* Selected model active summary & quick actions */}
         {selectedModel && (
           <div className="mt-2.5 p-3 rounded-xl bg-gradient-to-r from-rose-500/10 via-white/[0.02] to-transparent border border-rose-500/20 text-[11px] space-y-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-white flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   Voix active : {selectedModel.name}, {selectedModel.age} ans
                   {selectedModel.location && (
-                    <span className="text-[10px] text-zinc-400 font-normal">({selectedModel.location})</span>
+                    <span className="text-[10px] text-rose-300 font-normal">({selectedModel.location})</span>
                   )}
                 </span>
-                <span className="text-zinc-400">({selectedModel.favoriteEmojis?.join('')})</span>
+                <span className="text-zinc-400">({selectedModel.favoriteEmojis?.join(' ')})</span>
               </div>
 
               <div className="flex items-center gap-2">
+                {onDuplicateModel && (
+                  <button
+                    type="button"
+                    onClick={() => onDuplicateModel(selectedModel)}
+                    className="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-emerald-500/20 text-zinc-200 hover:text-emerald-300 border border-white/5 hover:border-emerald-500/30 transition flex items-center gap-1 text-[10px] font-semibold cursor-pointer"
+                  >
+                    <Copy className="w-2.5 h-2.5 text-emerald-400" />
+                    <span>Dupliquer</span>
+                  </button>
+                )}
+
                 {onEditModel && (
                   <button
                     type="button"
@@ -352,7 +602,7 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
                     className="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white transition flex items-center gap-1 text-[10px] font-semibold cursor-pointer"
                   >
                     <Pencil className="w-2.5 h-2.5 text-rose-400" />
-                    <span>Modifier ce persona</span>
+                    <span>Modifier</span>
                   </button>
                 )}
 
@@ -418,11 +668,11 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
         )}
       </div>
 
-      {/* 4. Mood & Vibe */}
+      {/* 5. Mood & Vibe */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-            4. Vibe & Circonstance
+            5. Vibe & Circonstance
           </label>
           <span className="text-[10px] text-zinc-500 font-mono">
             Adapte la tonalité intime
@@ -460,11 +710,11 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
         </div>
       </div>
 
-      {/* 5. Essential Media & Pitch */}
+      {/* 6. Essential Media & Pitch */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-            {isPaid ? '5. Ce qui se passe sur le média (Description)' : '5. Sujet ou Contexte du message'}
+            {isPaid ? '6. Ce qui se passe sur le média (Description)' : '6. Sujet ou Contexte du message'}
           </label>
           <span className="text-[10px] text-rose-400 font-medium">
             Clé d'un push 100% humain
@@ -483,7 +733,7 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
         />
       </div>
 
-      {/* 6. Quick essentials: Media Format & Price (Only for Paid PPV) */}
+      {/* 7. Quick essentials: Media Format & Price (Only for Paid PPV) */}
       {isPaid ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <div>

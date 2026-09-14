@@ -2,6 +2,7 @@ export type Platform = 'onlyfans' | 'mym';
 export type Language = 'fr' | 'us';
 export type PushType = 'paid_ppv' | 'free_retention';
 export type SentenceLength = 'one_line' | 'ultra_short' | 'short' | 'medium';
+export type VarietyLevel = 'low' | 'medium' | 'high'; // 'low' (faible), 'medium' (moyenne), 'high' (élevée)
 
 export type MoodCategory = 
   | 'gfe'             // Girlfriend Experience, tendre, intime, complice
@@ -51,6 +52,7 @@ export interface PushRequestConfig {
   language: Language;
   pushType: PushType; // 'paid_ppv' (PPV verrouillé) vs 'free_retention' (Message direct offert/relationnel)
   sentenceCount: SentenceLength; // 'ultra_short' (1-2 phrases), 'short' (2-3 phrases), 'medium' (3-4 phrases)
+  varietyLevel?: VarietyLevel; // 'low' (faible), 'medium' (moyenne), 'high' (élevée)
   mood: MoodCategory;
   mediaType: 'photo_set' | 'video_clip' | 'full_tape' | 'audio_voice' | 'exclusive_bundle' | 'none';
   priceSuggestion?: number; // in $ or €

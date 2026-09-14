@@ -3,6 +3,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+import { generateDynamicPushVariations } from './src/services/dynamicPushEngine';
 
 dotenv.config();
 
@@ -97,6 +98,7 @@ app.post('/api/generate-push', async (req, res) => {
       language,
       pushType = 'paid_ppv',
       sentenceCount = 'short',
+      varietyLevel = 'high',
       mood,
       mediaType,
       priceSuggestion,
@@ -112,6 +114,12 @@ app.post('/api/generate-push', async (req, res) => {
 
     const apiKey = openRouterConfig?.apiKey || process.env.OPENROUTER_API_KEY;
     const selectedModel = openRouterConfig?.model || 'anthropic/claude-3.5-sonnet';
+
+    // Temperature auto-adjustment according to varietyLevel
+    // 'low' -> 0.40 (consistent, predictable), 'medium' -> 0.75 (balanced), 'high' -> 1.10 (novelty & high creativity)
+    const baseTemp = varietyLevel === 'high' ? 1.10 : (varietyLevel === 'low' ? 0.40 : 0.75);
+    const llmTemperature = openRouterConfig?.temperature ?? baseTemp;
+    const geminiTemperature = varietyLevel === 'high' ? 1.05 : (varietyLevel === 'low' ? 0.40 : 0.75);
 
     // Sentence length strict guidelines
     let lengthDirective = '';
@@ -207,7 +215,16 @@ RÈGLES CAPITALES DE CONVERSATION & LOGISTIQUE MÉDIA :
 5. ANCRAGE DANS LA VIE RÉELLE DU MODÈLE :
    - Intègre ce qu'elle aime faire et son rythme quotidien réel (${modelProfile?.realLifeOccupation || 'Étudiante / passionnée de mode'}, ${modelProfile?.homeHabits || 'Traîne en nuisette, teste ses colis lingerie devant son miroir'}).
 
-6. VARIÉTÉ OBLIGATOIRE : GÉNÈRE STRICTEMENT 6 VARIATIONS DIFFÉRENTES (A/B Testing étendu).`;
+6. VARIÉTÉ OBLIGATOIRE : GÉNÈRE STRICTEMENT 6 VARIATIONS DIFFÉRENTES (A/B Testing étendu).
+${varietyLevel === 'high' ? `
+7. CONTRAINTE IMPÉRATIVE DE NOUVEAUTÉ & CRÉATIVITÉ INÉDITE (OPTION VARIÉTÉ ÉLEVÉE ACTIVE) :
+   - INTERDICTION FORMELLE DE RÉPÉTITIONS OU FORMULES VUES : Ne réutilise aucune tournure stéréotypée ou cliché d'accroche habituel.
+   - NOUVEAUX ANGLES PSYCHOLOGIQUES : Chaque variation doit proposer un angle narratif, un rythme de phrase et un degré d'intimité radicalement distinct des 5 autres.
+   - SPONTANÉITÉ & DÉTAILS INATTENDUS : Privilégie des micro-détails sensoriels originaux, des anecdotes spontanées, de la taquinerie complice et des tournures fraîches.` : (varietyLevel === 'low' ? `
+7. STABILITÉ & SOBRIÉTÉ (VARIÉTÉ FAIBLE) :
+   - Privilégie des formules éprouvées, sobres et prévisibles conformes au style habituel du modèle.` : `
+7. VARIÉTÉ ÉQUILIBRÉE :
+   - Assure un bon équilibre entre régularité du ton et fraîcheur des propositions.`)}`;
 
     const userPrompt = `DÉTAILS DU PUSH À GÉNÉRER :
 - Modèle : ${modelProfile?.name || 'Créatrice'}, ${modelProfile?.age || 23} ans.
@@ -330,7 +347,7 @@ Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 VARIATIONS (angles va
               { role: 'user', content: userPrompt }
             ],
             response_format: { type: 'json_object' },
-            temperature: openRouterConfig?.temperature ?? 0.85
+            temperature: llmTemperature
           })
         });
 
@@ -359,16 +376,23 @@ Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 VARIATIONS (angles va
     if (!parsedResult && process.env.GEMINI_API_KEY) {
       try {
         const ai = getAiClient();
+        const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const noveltyNotice = varietyLevel === 'high'
+          ? `[CONTRAINTE DE NOUVEAUTÉ STRICTE & MAXIMALE ACTIVE - TEMPÉRATURE ${geminiTemperature}]\nInterdiction formelle de répéter les formulations ou angles précédents. Diversité d'accroches maximale.`
+          : `[CONSIGNE VARIÉTÉ : ${varietyLevel.toUpperCase()}]`;
+
         const geminiRes = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `${systemPrompt}\n\n${userPrompt}`,
+          model: 'gemini-3.8-flash',
+          contents: `${systemPrompt}\n\n${userPrompt}\n\n[SEED FRAÎCHEUR #${nonce}]\n${noveltyNotice}\nCONSIGNE : Génère des variations variées et percutantes conformes au JSON attendu.`,
           config: {
-            responseMimeType: 'application/json'
+            responseMimeType: 'application/json',
+            temperature: geminiTemperature
           }
         });
 
         if (geminiRes.text) {
-          parsedResult = JSON.parse(geminiRes.text);
+          const cleaned = geminiRes.text.replace(/```json/gi, '').replace(/```/g, '').trim();
+          parsedResult = JSON.parse(cleaned);
           source = 'openrouter'; // Valid server-side AI model
         }
       } catch (gemErr) {
@@ -376,10 +400,10 @@ Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 VARIATIONS (angles va
       }
     }
 
-    // 3. Fallback generator if no API key is set yet, ensuring the user gets high quality immediate preview
+    // 3. Dynamic Creative Generator if no API key is set yet or for instant fresh preview
     if (!parsedResult) {
-      parsedResult = generateSimulatedVariations({
-        modelName: modelProfile?.name || 'Eden',
+      parsedResult = generateDynamicPushVariations({
+        modelProfile,
         language,
         mood,
         mediaContext,
@@ -414,8 +438,22 @@ Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 VARIATIONS (angles va
   }
 });
 
-// High quality backup template engine when no external API key is active
-function generateSimulatedVariations(params: {
+// Dynamic creative engine when no external API key is active
+function generateSimulatedVariations(params: any) {
+  return generateDynamicPushVariations({
+    modelProfile: params.modelProfile || ({ name: params.modelName || 'Sophia', id: 'temp' } as any),
+    language: params.language || 'fr',
+    mood: params.mood || 'hot',
+    mediaContext: params.mediaContext || '',
+    priceSuggestion: params.priceSuggestion || 15,
+    platform: params.platform || 'onlyfans',
+    hotLevel: params.hotLevel || 4,
+    pushType: params.pushType || 'paid_ppv',
+    sentenceCount: params.sentenceCount || 'short'
+  });
+}
+
+function _legacySimulatedVariations(params: {
   modelName: string;
   language: string;
   mood: string;
