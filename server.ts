@@ -221,8 +221,7 @@ RÈGLES CAPITALES DE CONVERSATION & LOGISTIQUE MÉDIA :
 
 3. DÉCLENCHEURS DE RÉPONSE SANS QUESTIONS BATEAUX :
    - Évite impérativement d'être toujours en mode question ("tu fais quoi ?", "tu dors ?", "t'as passé une bonne journée ?") qui sonne comme un robot télémarketing sans charme.
-   - Privilégie les AFFIRMATIONS PIQUANTES, les CONFIDENCES INTIMES, les DÉFIS/TAQUINERIES sur l'ego du fan, les OPINIONS TRANCHÉES et les MICRO-ANECDOTES SPONTANÉES.
-   - Les vraies femmes séduisantes affirment, confient et taquinent : c'est ce qui pousse le fan à répondre pour valider, contester, consoler ou complimenter !
+   - Privilégie les affirmations directes, les pensées impulsives, les piques complices, les détails troublants ou les constats sans filtre.
 
 4. RÈGLE STRICTE DU CADRE MÉDIA "100% MAISON / APPARTEMENT" :
    - Les créatrices n'ont PAS d'équipe de tournage pro ni de médias en studio extérieur ou en loge de défilé.
@@ -236,16 +235,19 @@ RÈGLES CAPITALES DE CONVERSATION & LOGISTIQUE MÉDIA :
 5. ANCRAGE DANS LA VIE RÉELLE DU MODÈLE :
    - Intègre ce qu'elle aime faire et son rythme quotidien réel (${modelProfile?.realLifeOccupation || 'Étudiante / passionnée de mode'}, ${modelProfile?.homeHabits || 'Traîne en nuisette, teste ses colis lingerie devant son miroir'}).
 
-6. VARIÉTÉ OBLIGATOIRE : GÉNÈRE STRICTEMENT 6 VARIATIONS DIFFÉRENTES (A/B Testing étendu).
+6. LIBERTÉ CRÉATIVE ABSOLUE — AUCUN ANGLE PRÉCIS NI SCHÉMA IMPOSÉ :
+   - INTERDICTION STRICTE DE SUIVRE UN PLAN D'ANGLES FIGÉS OU RÉPÉTITIFS (ne force JAMAIS de schéma 'confession, défi ego, micro-instant, opinion, bêtise, secret'). Les angles précis deviennent redondants et prévisibles.
+   - TU AS UNE TOTALE LIBERTÉ SUR LES PROPOSITIONS : choisis librement pour chaque proposition son approche, son énergie, son ton et sa dynamique émotionnelle.
+   - RÈGLE D'ANTI-SIMILARITÉ STRICTE : AUCUNE des 6 propositions ne doit se ressembler. Chaque proposition doit explorer une intention, un ton, un rythme de phrase et un déclencheur psychologique totalement différents.
+   - D'UNE GÉNÉRATION À L'AUTRE : Renouvelle intégralement tes idées. Surprends avec des accroches inattendues, des réflexions spontanées, des provocations douces, des métaphores complices ou des constats bruts. Ne reproduis jamais les mêmes formules.
 ${varietyLevel === 'high' ? `
-7. CONTRAINTE IMPÉRATIVE DE NOUVEAUTÉ & CRÉATIVITÉ INÉDITE (OPTION VARIÉTÉ ÉLEVÉE ACTIVE) :
-   - INTERDICTION FORMELLE DE RÉPÉTITIONS OU FORMULES VUES : Ne réutilise aucune tournure stéréotypée ou cliché d'accroche habituel.
-   - NOUVEAUX ANGLES PSYCHOLOGIQUES : Chaque variation doit proposer un angle narratif, un rythme de phrase et un degré d'intimité radicalement distinct des 5 autres.
-   - SPONTANÉITÉ & DÉTAILS INATTENDUS : Privilégie des micro-détails sensoriels originaux, des anecdotes spontanées, de la taquinerie complice et des tournures fraîches.` : (varietyLevel === 'low' ? `
-7. STABILITÉ & SOBRIÉTÉ (VARIÉTÉ FAIBLE) :
-   - Privilégie des formules éprouvées, sobres et prévisibles conformes au style habituel du modèle.` : `
+7. DIVERSITÉ & NOUVEAUTÉ MAXIMALE ACTIVE (VARIÉTÉ ÉLEVÉE) :
+   - INTERDICTION FORMELLE DE FORMULES VUES OU DE CLICHÉS RÉPÉTÉS : Explore les nuances les plus subtiles et inattendues de sa personnalité.
+   - ÉLECTROCHOC CRÉATIF : Aucune accroche ne doit utiliser la même construction grammaticale que les autres.` : (varietyLevel === 'low' ? `
+7. SOBRIÉTÉ :
+   - Reste naturelle et fluide, sans complexité superflue.` : `
 7. VARIÉTÉ ÉQUILIBRÉE :
-   - Assure un bon équilibre entre régularité du ton et fraîcheur des propositions.`)}
+   - Richesse naturelle des accroches, fraîcheur du vocabulaire et diversité des intentions.`)}
 
 ${timeRuleSystem}`;
 
@@ -279,74 +281,76 @@ ${rulesContext}
 ${langInstructions}
 
 FORMAT ATTENDU :
-Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 VARIATIONS (angles variés : 1. Confession/Aveu intime, 2. Taquinerie/Défi ego, 3. Micro-instant à la maison, 4. Opinion/Dilemme tranché, 5. Gaffe/Bêtise complice, 6. Secret exclusif/FOMO) :
+Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 PROPOSITIONS TOTALEMENT LIBRES ET DIVERSES :
+Important : Ne suis AUCUN angle pré-défini. Sois 100% libre et invente 6 approches complètement uniques et imprévisibles pour qu'aucune ne se ressemble.
+Donne à chaque proposition un "angleLabel" court et original inventé pour l'occasion (ex: "Pensée impulsive", "Pique complice", "Détail troublant", "Provocation douce", "Instinct brut", "Humeur sans filtre", etc.) :
 {
   "recommendations": {
     "bestSendTimeFanTz": "${resolvedTime.timeString} (${resolvedTime.periodLabelFr})",
     "currentFanLocalTime": "${resolvedTime.timeString} — ${resolvedTime.periodLabelFr}",
-    "pricingTip": "${isPaidPush ? 'Conseil court sur le prix optimal du PPV' : 'Conseil d\'engagement : une affirmation forte génère 3x plus de réponses qu\'une question banale'}",
+    "pricingTip": "${isPaidPush ? 'Conseil court sur le prix optimal du PPV' : 'Conseil d\'engagement : une affirmation forte génère 3x plus de réponses'}",
     "safetyAudit": "Note de conformité aux règles de la plateforme (termes validés)"
   },
   "variations": [
     {
       "id": "var-1",
-      "angle": "direct",
-      "angleLabel": "Confession & Aveu Intime (Affirmation)",
-      "message": "Texte court...",
-      "estimatedOpenRate": "84%",
+      "angle": "libre_1",
+      "angleLabel": "Titre créatif unique pour cette proposition",
+      "message": "Texte court, percutant et unique...",
+      "estimatedOpenRate": "88%",
       "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '15€') : 'Gratuit'}",
       "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Ancrage confession sincère à domicile"
+      "timeContextNote": "Intention psychologique singulière"
     },
     {
       "id": "var-2",
-      "angle": "tease_playful",
-      "angleLabel": "Taquinerie & Défi (Pique son ego)",
-      "message": "Texte court...",
-      "estimatedOpenRate": "88%",
+      "angle": "libre_2",
+      "angleLabel": "Autre titre créatif unique (approche distincte)",
+      "message": "Texte court avec une énergie et un ton radicalement différents...",
+      "estimatedOpenRate": "92%",
       "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '12€') : 'Gratuit'}",
       "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Pousse à réagir par fierté masculine"
+      "timeContextNote": "Autre levier relationnel"
     },
     {
       "id": "var-3",
-      "angle": "intimate_gfe",
-      "angleLabel": "Micro-Instant Maison (Storytelling réel)",
-      "message": "Texte court...",
-      "estimatedOpenRate": "92%",
+      "angle": "libre_3",
+      "angleLabel": "Autre titre créatif unique (rythme différent)",
+      "message": "Texte court avec une émotion distincte...",
+      "estimatedOpenRate": "86%",
       "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '18€') : 'Gratuit'}",
       "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Scène de vie crédible chez elle"
+      "timeContextNote": "Scène ou détail spontané"
     },
     {
       "id": "var-4",
-      "angle": "direct",
-      "angleLabel": "Opinion Tranchée (Générateur de débat)",
-      "message": "Texte court...",
-      "estimatedOpenRate": "86%",
+      "angle": "libre_4",
+      "angleLabel": "Autre titre créatif unique (énergie inattendue)",
+      "message": "Texte court surprenant...",
+      "estimatedOpenRate": "90%",
       "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '15€') : 'Gratuit'}",
       "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Force le fan à donner son point de vue"
+      "timeContextNote": "Déclencheur d'intérêt inattendu"
     },
     {
       "id": "var-5",
-      "angle": "mysterious",
-      "angleLabel": "Gaffe / Petite Bêtise Complice",
-      "message": "Texte court...",
-      "estimatedOpenRate": "90%",
+      "angle": "libre_5",
+      "angleLabel": "Autre titre créatif unique (ton brut ou complice)",
+      "message": "Texte court avec un naturel désarmant...",
+      "estimatedOpenRate": "89%",
       "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '14€') : 'Gratuit'}",
       "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Connexion authentique sans filtre"
+      "timeContextNote": "Spontanéité organique"
     },
     {
       "id": "var-6",
-      "angle": "mysterious",
-      "angleLabel": "Secret Absolu (FOMO & Exclusivité)",
-      "message": "Texte court...",
+      "angle": "libre_6",
+      "angleLabel": "Autre titre créatif unique (audace ou confidence)",
+      "message": "Texte court marquant et singulier...",
       "estimatedOpenRate": "94%",
       "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '20€') : 'Gratuit'}",
       "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Sentiment privilégié de confidence privée"
+      "timeContextNote": "Confidence ou exclusivité"
     }
   ]
 }`;
@@ -403,12 +407,12 @@ Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 VARIATIONS (angles va
         const ai = getAiClient();
         const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         const noveltyNotice = varietyLevel === 'high'
-          ? `[CONTRAINTE DE NOUVEAUTÉ STRICTE & MAXIMALE ACTIVE - TEMPÉRATURE ${geminiTemperature}]\nInterdiction formelle de répéter les formulations ou angles précédents. Diversité d'accroches maximale.`
-          : `[CONSIGNE VARIÉTÉ : ${varietyLevel.toUpperCase()}]`;
+          ? `[LIBERTÉ CRÉATIVE TOTALE - DIVERSITÉ & NOUVEAUTÉ MAXIMALE ACTIVE - TEMPÉRATURE ${geminiTemperature}]\nInterdiction formelle de répéter les formulations ou de suivre un schéma d'angles fixe. Donne 6 propositions d'accroches radicalement différentes les unes des autres.`
+          : `[CONSIGNE VARIÉTÉ : ${varietyLevel.toUpperCase()} - LIBERTÉ CRÉATIVE TOTALE - 6 PROPOSITIONS DISSIMILAIRES]`;
 
         const geminiRes = await ai.models.generateContent({
           model: 'gemini-3.8-flash',
-          contents: `${systemPrompt}\n\n${userPrompt}\n\n[SEED FRAÎCHEUR #${nonce}]\n${noveltyNotice}\nCONSIGNE : Génère des variations variées et percutantes conformes au JSON attendu.`,
+          contents: `${systemPrompt}\n\n${userPrompt}\n\n[SEED FRAÎCHEUR #${nonce}]\n${noveltyNotice}\nCONSIGNE : Génère 6 propositions totalement libres et imprévisibles, sans angle précis imposé, afin qu'aucune ne se ressemble.`,
           config: {
             responseMimeType: 'application/json',
             temperature: geminiTemperature

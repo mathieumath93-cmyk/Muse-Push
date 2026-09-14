@@ -80,7 +80,7 @@ export interface PushRequestConfig {
 
 export interface GeneratedVariation {
   id: string;
-  angle: 'direct' | 'mysterious' | 'intimate_gfe' | 'tease_playful';
+  angle: string;
   angleLabel: string;
   message: string;
   estimatedOpenRate: string;

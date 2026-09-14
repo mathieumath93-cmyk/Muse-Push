@@ -560,14 +560,10 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
           ? 'LONGUEUR : ULTRA-COURT (1 à 2 phrases max, 15 à 25 mots).'
           : 'LONGUEUR : COURT (2 phrases max).');
 
-      const noveltyConstraint = varietyLevel === 'high'
-        ? `\n6. CONTRAINTE IMPÉRATIVE DE NOUVEAUTÉ & DIVERSITÉ MAXIMALE (VARIÉTÉ ÉLEVÉE ACTIVE) :
-   - INTERDICTION FORMELLE DE RÉPÉTITION : Ne réutilise aucune tournure stéréotypée ou formule cliché déjà vue.
-   - 6 ANGLES INÉDITS : Chacune des 6 variations doit aborder la situation sous un angle psychologique et un style de phrase radicalement distincts des autres.
-   - CRÉATIVITÉ ET SURPRISE : Métaphores fraîches, confessions inattendues, auto-dérision complice et détails sensoriels authentiques.`
-        : (varietyLevel === 'low'
-          ? `\n6. STYLE SOBRE & ÉPROUVÉ (VARIÉTÉ FAIBLE) : Privilégie des formulations simples, classiques et rassurantes.`
-          : `\n6. VARIÉTÉ NATURELLE : Équilibre harmonieux entre style habituel et renouvellement des accroches.`);
+      const noveltyConstraint = `\n6. LIBERTÉ CRÉATIVE ABSOLUE — AUCUN ANGLE IMPOSÉ :
+   - INTERDICTION FORMELLE DE SUIVRE DES ANGLES FIXES OU RÉPÉTITIFS (ne force aucun angle précis).
+   - L'IA EST 100% LIBRE sur les propositions : choisis librement le ton, le déclencheur et le style de chaque message.
+   - DIVERSITÉ TOTALE : AUCUNE des 6 propositions ne doit se ressembler ni être similaire. Varie les accroches, les tournures, le rythme et l'émotion.`;
 
       const timeConstraintDirect = language === 'us'
         ? `\n7. STRICT TIME CONTEXT (${resolvedTime.timeString} - ${resolvedTime.periodLabelUs}):
@@ -583,9 +579,9 @@ Ton rôle est de générer des MASS MESSAGES ultra-performants qui relancent imm
 RÈGLES CAPITALES :
 1. LE MESSAGE EST DÉJÀ EN DM : INTERDICTION FORMELLE d'écrire "viens en DM", "viens me dire en DM", "envoie un DM", "shoot me a DM". Le fan lit déjà ce message DANS ses messages privés ! Sois naturelle, comme un SMS intime.
 2. LONGUEUR ULTRA-SIMPLE : Reste très direct, jusqu'à 1 seule phrase percutante.
-3. DÉCLENCHEURS DE RÉPONSE SANS QUESTIONS BATEAUX : Privilégie les affirmations piquantes, confidences intimes, taquineries sur l'ego et opinions tranchées.
+3. DÉCLENCHEURS DE RÉPONSE SANS QUESTIONS BATEAUX : Privilégie les affirmations directes, pensées spontanées, piques complices, détails troublants et constats bruts.
 4. RÈGLE DU CADRE MÉDIA "100% MAISON" : Chambre, miroir, couette, lit, salle de bain, unboxing de lingerie reçue.
-5. VARIÉTÉ : STRICTEMENT 6 VARIATIONS DIFFÉRENTES.${noveltyConstraint}${timeConstraintDirect}`;
+5. STRICTEMENT 6 PROPOSITIONS TOTALEMENT LIBRES ET DISSIMILAIRES.${noveltyConstraint}${timeConstraintDirect}`;
 
       const userPrompt = `Modèle : ${modelProfile?.name || 'Créatrice'}, ${modelProfile?.age || 23} ans.
 ${modelProfile?.location ? `Localisation : ${modelProfile.location}` : ''}
@@ -602,7 +598,8 @@ Vibe : ${mood} | Hot level : ${hotLevel}/5 | ${pushTypeDirective}
 ${lengthDirective}
 Heure fan réelle : ${resolvedTime.timeString} (${resolvedTime.periodLabelFr})
 Ambiance requise : ${resolvedTime.contextualAtmosphereFr}
-Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 6 objets).`;
+Important : AUCUN angle imposé. 100% libre pour que les 6 propositions soient complètement différentes et inventives.
+Format attendu : JSON valide avec "recommendations" et "variations" (tableau de 6 objets avec id, angle, angleLabel créatif inventé, message, estimatedOpenRate, suggestedPrice, mediaNotice, timeContextNote).`;
 
       const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',

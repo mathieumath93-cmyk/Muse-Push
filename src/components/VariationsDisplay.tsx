@@ -140,7 +140,7 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
                 <div className="flex items-center justify-between mb-2.5">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/25">
-                      Angle #{idx + 1} • {item.angleLabel}
+                      Proposition #{idx + 1} • {item.angleLabel?.replace(/^Angle\s*#?\d*\s*[:•-]?\s*/i, '') || 'Libre'}
                     </span>
                     <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                       <TrendingUp className="w-3 h-3" /> {item.estimatedOpenRate} estimé
