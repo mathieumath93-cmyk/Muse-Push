@@ -10,7 +10,11 @@ import {
   Clock, 
   Share2,
   DollarSign,
-  Heart
+  Heart,
+  RefreshCw,
+  Sliders,
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 
 interface VariationsDisplayProps {
@@ -19,6 +23,9 @@ interface VariationsDisplayProps {
   platform: 'onlyfans' | 'mym';
   modelName: string;
   pushType?: 'paid_ppv' | 'free_retention';
+  onRegenerateFresh?: () => void;
+  onResetHistory?: () => void;
+  historyCount?: number;
 }
 
 export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
@@ -26,7 +33,10 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
   loading,
   platform,
   modelName,
-  pushType = 'paid_ppv'
+  pushType = 'paid_ppv',
+  onRegenerateFresh,
+  onResetHistory,
+  historyCount = 0
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
@@ -139,9 +149,77 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
         </div>
       )}
 
+      {/* Anti-Repetition & Active Parameters Shield Banner */}
+      <div className="bg-[#15151f] border border-rose-500/20 rounded-2xl p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+              <Zap className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white flex items-center gap-2">
+                <span>Anti-Répétition & Respect Intégral des Paramètres</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  Actif
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                Chaque génération applique 6 déclencheurs psychologiques uniques et bannit les formulations précédentes.
+              </p>
+            </div>
+          </div>
+
+          {onRegenerateFresh && (
+            <button
+              type="button"
+              onClick={onRegenerateFresh}
+              disabled={loading}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-rose-500/20 transition shrink-0 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Forcer 6 nouvelles phrases</span>
+            </button>
+          )}
+        </div>
+
+        {/* Active parameter chips */}
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className="text-zinc-500 text-[10px] uppercase tracking-wider font-semibold mr-1">
+            Paramètres pris en compte :
+          </span>
+
+          <span className="px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3 text-rose-400" />
+            Vibe : <strong className="text-white">{result.activeParametersSummary?.mood || 'Calibrée'}</strong>
+          </span>
+
+          <span className="px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 flex items-center gap-1">
+            <Clock className="w-3 h-3 text-emerald-400" />
+            {result.recommendations?.bestSendTimeFanTz || 'Heure fan synchronisée'}
+          </span>
+
+          <span className="px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 flex items-center gap-1">
+            <Sliders className="w-3 h-3 text-amber-400" />
+            {pushType === 'paid_ppv' ? 'PPV Payant (Verrouillé)' : 'Relance gratuite'}
+          </span>
+
+          {result.activeParametersSummary?.hasMediaContext && (
+            <span className="px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/20 flex items-center gap-1">
+              ✓ Cadre média intégré
+            </span>
+          )}
+
+          {historyCount > 0 && (
+            <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 flex items-center gap-1 font-mono">
+              🛡️ {historyCount} phrases précédentes exclues
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Main Split: Variations List (Left/Center) + Realistic Smartphone Mockup (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left column: 3 generated angles */}
+        {/* Left column: 6 generated angles */}
         <div className="lg:col-span-7 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-300 flex items-center gap-2">

@@ -6,6 +6,7 @@ import { GoogleGenAI } from '@google/genai';
 import { generateDynamicPushVariations } from './src/services/dynamicPushEngine';
 import { getResolvedTime } from './src/utils/timeZoneHelper';
 import { MOODS, getMoodDetail } from './src/data';
+import { buildPushPrompts } from './src/services/pushPromptBuilder';
 
 dotenv.config();
 
@@ -162,11 +163,43 @@ app.post('/api/generate-push', async (req, res) => {
   try {
     const {
       modelProfile,
-      platform,
-      language,
+      platform = 'onlyfans',
+      language = 'fr',
       pushType = 'paid_ppv',
       sentenceCount = 'short',
       varietyLevel = 'high',
+      mood = 'hot',
+      mediaType = 'photo_set',
+      priceSuggestion,
+      mediaContext = '',
+      callToAction = 'unlock_ppv',
+      targetAudience = 'all_subs',
+      hotLevel = 3,
+      timeContext,
+      openRouterConfig,
+      trainingExamples,
+      agencyPlaybookRules,
+      previousMessages = []
+    } = req.body;
+
+    const apiKey = openRouterConfig?.apiKey || process.env.OPENROUTER_API_KEY;
+    const selectedModel = openRouterConfig?.model || 'anthropic/claude-3.5-sonnet';
+
+    // Build comprehensive prompts with 6 distinct psychological triggers and strict anti-repetition rules
+    const {
+      systemPrompt,
+      userPrompt,
+      resolvedTime,
+      temperature,
+      chosenTriggers,
+      seedNonce
+    } = buildPushPrompts({
+      modelProfile,
+      platform,
+      language,
+      pushType,
+      sentenceCount,
+      varietyLevel,
       mood,
       mediaType,
       priceSuggestion,
@@ -175,289 +208,13 @@ app.post('/api/generate-push', async (req, res) => {
       targetAudience,
       hotLevel,
       timeContext,
-      openRouterConfig,
+      previousMessages,
       trainingExamples,
       agencyPlaybookRules
-    } = req.body;
+    });
 
-    const apiKey = openRouterConfig?.apiKey || process.env.OPENROUTER_API_KEY;
-    const selectedModel = openRouterConfig?.model || 'anthropic/claude-3.5-sonnet';
-
-    // Temperature auto-adjustment according to varietyLevel
-    // 'low' -> 0.40 (consistent, predictable), 'medium' -> 0.75 (balanced), 'high' -> 1.10 (novelty & high creativity)
-    const baseTemp = varietyLevel === 'high' ? 1.10 : (varietyLevel === 'low' ? 0.40 : 0.75);
-    const llmTemperature = openRouterConfig?.temperature ?? baseTemp;
-    const geminiTemperature = varietyLevel === 'high' ? 1.05 : (varietyLevel === 'low' ? 0.40 : 0.75);
-
-    // Sentence length strict guidelines
-    let lengthDirective = '';
-    if (sentenceCount === 'one_line') {
-      lengthDirective = `LONGUEUR STRICTEMENT CONSERVÉE : 1 SEULE PHRASE UNIQUE (Ultra-court, percutant, brut, maximum 8 à 15 mots).
-- Le message fait STRICTEMENT 1 SEULE LIGNE / 1 PHRASE. Zéro saut de ligne, zéro blabla.
-- Style SMS instantané percutant.`;
-    } else if (sentenceCount === 'ultra_short') {
-      lengthDirective = `LONGUEUR STRICTEMENT CONSERVÉE : ULTRA-COURT (1 à 2 phrases MAX).
-- Le message doit faire entre 15 et 25 mots au total.
-- AUCUN paragraphe long. Style SMS direct, percutant et rapide. Pas de remplissage.`;
-    } else if (sentenceCount === 'short') {
-      lengthDirective = `LONGUEUR STRICTEMENT CONSERVÉE : COURT (2 phrases courtes MAX).
-- Le message doit faire entre 25 et 40 mots au total.
-- Zéro roman ! Des phrases rythmées avec de l'air.`;
-    } else {
-      lengthDirective = `LONGUEUR : MAXIMUM 2 À 3 PHRASES COURTES.
-- Le message ne doit JAMAIS dépasser 45 mots. Reste concis et spontané.`;
-    }
-
-    // Push Type distinctions: Paid PPV vs Free Retention
-    const isPaidPush = pushType === 'paid_ppv';
-    let pushTypeDirective = '';
-    if (isPaidPush) {
-      pushTypeDirective = `TYPE DE MESSAGE : MASS MESSAGE PAYANT (PPV / Média à débloquer).
-- Le fan doit payer ou débloquer pour voir la photo/vidéo.
-- L'objectif est le DÉCLENCHEMENT D'ACHAT (taux de conversion PPV).
-- Ne dévoile pas tout, donne envie de débloquer le contenu avec curiosité, tension sensuelle ou urgence intime.
-- Mentionne discrètement de regarder/débloquer sans jamais utiliser de termes mercantiles ("promo", "achetez").`;
-    } else {
-      pushTypeDirective = `TYPE DE MESSAGE : MASS MESSAGE SIMPLE & GRATUIT (Relationnel / Engagement / Rétention).
-- Il n'y a PAS de média payant à débloquer ! (Média offert ou simple SMS relationnel).
-- L'objectif est d'ENGAGER LE DIALOGUE, booster la complicité ou réactiver le fan.
-- Ne parle d'AUCUN déblocage ni d'aucun prix !`;
-    }
-
-    // Format training examples for few-shot learning
-    let trainingContext = '';
-    if (Array.isArray(trainingExamples) && trainingExamples.length > 0) {
-      trainingContext = `\n\nEXEMPLES DE PUSHS HISTORIQUES GAGNANTS (AYANT GÉNÉRÉ LE PLUS DE VENTES/PPV) :
-Inspire-toi rigoureusement de leur syntaxe, de leur rythme, de l'absence totale de vocabulaire commercial et de leur authenticité :
-${trainingExamples.map((ex: any, i: number) => `
-[Exemple Gagnant #${i + 1} - ${ex.title || 'Push Top Performer'} (${ex.revenueGenerated || 'Fort CA'})] :
-"""
-${ex.text}
-"""
-(Pourquoi il a cartonné : ${ex.notes || 'Ton naturel et intime'})
-`).join('\n')}`;
-    }
-
-    let rulesContext = '';
-    if (agencyPlaybookRules && agencyPlaybookRules.trim()) {
-      rulesContext = `\n\nDIRECTIVES & PLAYBOOK SPÉCIFIQUE DE L'AGENCE (À RESPECTER STRICTEMENT) :
-${agencyPlaybookRules.trim()}`;
-    }
-
-    // Build the tailored prompt
-    const langInstructions = language === 'us'
-      ? `Write in authentic, modern American English used by successful female content creators.
-Use natural abbreviations, colloquial rhythms (like "babe", "ngl", "lowkey", "so juicy", "look what happened earlier..."), intimate cadence, lowercase touches where natural, and realistic spacing. NEVER sound corporate, formal, or robotic.`
-      : `Écris en français naturel et moderne, exactement comme une vraie jeune femme sexy et complice qui parle à son crush ou à sa communauté intime.
-Utilise des tournures familières, spontanées (ex: "coucou toi", "j’ai pensé à toi", "tu vas pas en revenir...", "j’ai fait une bêtise..."). Zéro formule de pub impersonnelle, ponctuation légère et naturelle.`;
-
-    const platformTerminology = platform === 'onlyfans'
-      ? 'Platform: OnlyFans (Fans receive mass message / PPV / Tip to unlock).'
-      : 'Platform: MYM.fans (Média privé / Push payant / Message d’actualité privée).';
-
-    // Resolve exact clock & time of day period
-    const resolvedTime = getResolvedTime(
-      timeContext?.selectedTzZone || 'FR_CET',
-      timeContext?.useCurrentTime ?? true,
-      timeContext?.customHour,
-      timeContext?.customMinute
-    );
-
-    const timeRuleSystem = language === 'us'
-      ? `8. CRITICAL TIME CONTEXT & REAL-WORLD CLOCK (CURRENT FAN TIME: ${resolvedTime.timeString} - ${resolvedTime.periodLabelUs}):
-   - CURRENT LOCAL TIME: Exactly ${resolvedTime.timeString} (${resolvedTime.periodLabelUs}).
-   - FORBIDDEN CONTRADICTORY WORDS: Do NOT use ${resolvedTime.forbiddenWordsUs.map(w => `"${w}"`).join(', ')}.
-   - IF IT IS 12 PM, 1 PM, 2 PM (14h) OR AFTERNOON: ABSOLUTE BAN on waking up, morning bed sheets, messy sleep hair, "just woke up", "this morning", "waking up", or morning coffee. The day is already in full swing! It is BROAD DAYLIGHT.
-   - If it is daytime: BROAD DAYLIGHT! NEVER speak of "night", "bedtime", "tonight", "insomnia", "sleeping", or "dark room".
-   - REAL ATMOSPHERE REQUIRED: ${resolvedTime.contextualAtmosphereUs}`
-      : `8. RÈGLE CRITIQUE DE COHÉRENCE HORAIRE & LUMIÈRE DU JOUR (HEURE RÉELLE ACTUELLE DU FAN : ${resolvedTime.timeString} - ${resolvedTime.periodLabelFr}) :
-   - HEURE LOCALE EXACTE DU FAN : Il est actuellement ${resolvedTime.timeString} (${resolvedTime.periodLabelFr}).
-   - MOTS & EXPRESSIONS STRICTEMENT INTERDITS : Ne mentionne JAMAIS ${resolvedTime.forbiddenWordsFr.map(w => `"${w}"`).join(', ')}.
-   - S'IL EST 12H, 13H, 14H OU DANS L'APRÈS-MIDI : INTERDICTION FORMELLE ET ABSOLUE DE PARLER DU RÉVEIL DU MATIN ! Tu ne dois JAMAIS écrire "les yeux à peine ouverts", "je me réveille", "au réveil", "au saut du lit", "mon café du matin", "ce matin", "nuisette qui a glissé pendant la nuit". À 14h, la journée est déjà bien entamée, le réveil est passé depuis des heures, c'est l'après-midi en plein jour !
-   - S'IL FAIT JOUR : INTERDICTION FORMELLE d'évoquer "ce soir", "cette nuit", "bonne nuit", "insomnie", "tu dors", "dans le noir" ou "lampe de chevet".
-   - AMBIANCE OBLIGATOIRE : ${resolvedTime.contextualAtmosphereFr}`;
-
-    const moodObj = getMoodDetail(mood);
-    const moodName = moodObj ? (language === 'us' ? moodObj.nameEn : moodObj.name) : mood;
-    const moodGuidance = moodObj ? (language === 'us' ? moodObj.promptGuidanceUs : moodObj.promptGuidanceFr) : '';
-
-    let moodSpecificInstructions = '';
-    if (mood === 'positions_hot') {
-      moodSpecificInstructions = language === 'us'
-        ? `\n- SPECIFICITY POSITIONS & ANGLES (HIGH PRIORITY): Every proposition MUST center on favorite intimate positions, cambrures, arched angles on bed/sheets, riding, or provocative questions about what position drives him wild. Make him picture it immediately.`
-        : `\n- SPÉCIFICITÉ POSITIONS & ANGLES HOT (PRIORITAIRE ABSOLUE) : Les propositions DOIVENT obligatoirement tourner autour des positions préférées, de la cambrure sur le lit, d'être au-dessus ou prise par surprise, ou de questions/dilemmes très chauds sur ses positions préférées. Force-le à s'imaginer la scène immédiatement.`;
-    } else if (mood === 'body_explicit') {
-      moodSpecificInstructions = language === 'us'
-        ? `\n- SPECIFICITY BODY & EXPLICIT CURVES (HIGH PRIORITY): Unfiltered focus on body curves (chest/breasts, sheer transparent fabric, arch, waist, hips, wet skin). Raw, confident, highly sensual and completely unapologetic.`
-        : `\n- SPÉCIFICITÉ CORPS & DÉTAILS SANS FILTRE (PRIORITAIRE ABSOLUE) : Focalise les propositions sans complexe sur l'anatomie et les détails sensuels du corps (poitrine/seins lourds qui débordent, cambrure, fesses/cul moulé, dentelle ultra-transparente, peau chaude). Ton très audacieux, direct et décomplexé.`;
-    } else if (mood === 'fantasies_taboo') {
-      moodSpecificInstructions = language === 'us'
-        ? `\n- SPECIFICITY FANTASIES & FORBIDDEN (HIGH PRIORITY): Explore secret fantasies, unspoken desires, taboo thoughts, and bold questions asking what his wildest forbidden fantasy is.`
-        : `\n- SPÉCIFICITÉ FANTASMES & INTERDITS (PRIORITAIRE ABSOLUE) : Explore les désirs inavoués, les pensées interdites, les scénarios secrets sans tabou, et pose des questions directes sur ses fantasmes les plus inavouables.`;
-    } else if (mood === 'dirty_talk') {
-      moodSpecificInstructions = language === 'us'
-        ? `\n- SPECIFICITY DIRTY TALK & RAW VIBE (HIGH PRIORITY): Direct, intimate, fiery dirty talk. Tease ruthlessly, whisper raw sensations, and light a fire under him with one unapologetic sentence.`
-        : `\n- SPÉCIFICITÉ DIRTY TALK & PROVOCATION (PRIORITAIRE ABSOLUE) : Adopte un langage très direct, complice et brûlant. Provocations sensuelles brutes, excitation partagée, chuchotement sans filtre qui fait grimper la température en une phrase.`;
-    } else if (mood === 'shower_bath') {
-      moodSpecificInstructions = language === 'us'
-        ? `\n- SPECIFICITY SHOWER & WET SKIN: Water droplets on skin, steamy bathroom mirror, towel slipping off, fresh wet hair.`
-        : `\n- SPÉCIFICITÉ DOUCHE & BAIN : Gouttes d'eau sur la peau, miroir embué, serviette qui glisse toute seule, sortie de bain sensuelle.`;
-    }
-
-    const systemPrompt = `Tu es une experte d'élite en copywriting et ghostwriting pour créatrices glamour & charme sur ${platform === 'onlyfans' ? 'OnlyFans' : 'MYM'}.
-Ton rôle est de générer des MASS MESSAGES ultra-performants qui relancent immédiatement les discussions et l'intérêt des fans.
-
-RÈGLE CAPITALE DE LA VIBE & CIRCONSTANCE :
-- VIBE SÉLECTIONNÉE : "${moodName}" (${moodObj?.badge || 'Thématique active'})
-- CONSIGNE DE CE MOOD : ${moodGuidance}
-${moodSpecificInstructions}
-- TU DOIS OBLIGATOIREMENT imprégner les propositions de cette thématique ! Chaque proposition doit respirer cette vibe avec sa propre approche créative.
-
-RÈGLES CAPITALES DE CONVERSATION & LOGISTIQUE MÉDIA :
-1. LE MESSAGE EST DÉJÀ DANS LA MESSAGERIE PRIVÉE (DM) DU FAN :
-   - INTERDICTION STRICTE de phrases ridicules et redondantes comme "viens me dire en DM", "réponds-moi en DM", "viens en DM", "shoot me a DM", "text me in DMs". Le fan est DÉJÀ dans son chat DM en train de lire le message ! Parler de "DM" sonne faux, amateur et cringe.
-   - Parle directement comme un SMS intime ("dis-moi ce que t'en penses", "avoue", "t'en dis quoi ?", "j'attends ton avis", ou simplement l'affirmation seule sans demander la permission).
-
-2. ULTRA-CONCIS (JUSQU'À 1 PHRASE SIMPLE) :
-   - Fais court, percutant et brut. Pas de longs paragraphes ni de blabla de remplissage. Une seule phrase puissante suffit souvent à déclencher 10x plus de réponses.
-
-3. DÉCLENCHEURS DE RÉPONSE SANS QUESTIONS BATEAUX :
-   - Évite impérativement d'être toujours en mode question ("tu fais quoi ?", "tu dors ?", "t'as passé une bonne journée ?") qui sonne comme un robot télémarketing sans charme.
-   - Privilégie les affirmations directes, les pensées impulsives, les piques complices, les détails troublants ou les constats sans filtre.
-
-4. RÈGLE STRICTE DU CADRE MÉDIA "100% MAISON / APPARTEMENT" :
-   - Les créatrices n'ont PAS d'équipe de tournage pro ni de médias en studio extérieur ou en loge de défilé.
-   - TOUTES les scènes, essayages et moments doivent être ancrés dans l'intimité du domicile réel :
-     * Le lit / sous la couette ou les draps défaits
-     * Le miroir de sa chambre ou du dressing (essayage de colis de lingerie commandés en ligne)
-     * La salle de bain (sortie de douche, serviette, miroir embué, bain)
-     * Le canapé du salon (télétravail/révisions décontractées en tenue trop légère)
-     * La cuisine (verre d'eau en pleine nuit, café du matin pieds nus)
-
-5. ANCRAGE DANS LA VIE RÉELLE DU MODÈLE :
-   - Intègre ce qu'elle aime faire et son rythme quotidien réel (${modelProfile?.realLifeOccupation || 'Étudiante / passionnée de mode'}, ${modelProfile?.homeHabits || 'Traîne en nuisette, teste ses colis lingerie devant son miroir'}).
-
-6. LIBERTÉ CRÉATIVE ABSOLUE — AUCUN ANGLE PRÉCIS NI SCHÉMA IMPOSÉ :
-   - INTERDICTION STRICTE DE SUIVRE UN PLAN D'ANGLES FIGÉS OU RÉPÉTITIFS (ne force JAMAIS de schéma 'confession, défi ego, micro-instant, opinion, bêtise, secret'). Les angles précis deviennent redondants et prévisibles.
-   - TU AS UNE TOTALE LIBERTÉ SUR LES PROPOSITIONS : choisis librement pour chaque proposition son approche, son énergie, son ton et sa dynamique émotionnelle.
-   - RÈGLE D'ANTI-SIMILARITÉ STRICTE : AUCUNE des 6 propositions ne doit se ressembler. Chaque proposition doit explorer une intention, un ton, un rythme de phrase et un déclencheur psychologique totalement différents.
-   - D'UNE GÉNÉRATION À L'AUTRE : Renouvelle intégralement tes idées. Surprends avec des accroches inattendues, des réflexions spontanées, des provocations douces, des métaphores complices ou des constats bruts. Ne reproduis jamais les mêmes formules.
-${varietyLevel === 'high' ? `
-7. DIVERSITÉ & NOUVEAUTÉ MAXIMALE ACTIVE (VARIÉTÉ ÉLEVÉE) :
-   - INTERDICTION FORMELLE DE FORMULES VUES OU DE CLICHÉS RÉPÉTÉS : Explore les nuances les plus subtiles et inattendues de sa personnalité.
-   - ÉLECTROCHOC CRÉATIF : Aucune accroche ne doit utiliser la même construction grammaticale que les autres.` : (varietyLevel === 'low' ? `
-7. SOBRIÉTÉ :
-   - Reste naturelle et fluide, sans complexité superflue.` : `
-7. VARIÉTÉ ÉQUILIBRÉE :
-   - Richesse naturelle des accroches, fraîcheur du vocabulaire et diversité des intentions.`)}
-
-${timeRuleSystem}`;
-
-    const userPrompt = `DÉTAILS DU PUSH À GÉNÉRER :
-- Modèle : ${modelProfile?.name || 'Créatrice'}, ${modelProfile?.age || 23} ans.
-${modelProfile?.location ? `- Localisation : ${modelProfile.location}` : ''}
-- Métier / Vie réelle : ${modelProfile?.realLifeOccupation || 'Créatrice & passionnée de mode'}.
-- Habitudes à la maison : ${modelProfile?.homeHabits || 'Chambre, grand miroir, couette, moments cosy'}.
-- Personnalité : ${modelProfile?.personality || 'Sensuelle, naturelle et très complice'}.
-${modelProfile?.objective ? `- Objectif relationnel prioritaire : ${modelProfile.objective}` : ''}
-${modelProfile?.themes && modelProfile.themes.length > 0 ? `- Thèmes et univers de prédilection : ${modelProfile.themes.join(', ')}` : ''}
-${modelProfile?.tone ? `- Ton de voix : ${modelProfile.tone}` : ''}
-- Style / Directives : ${modelProfile?.customToneNotes || 'Affirmations directes, ton spontané et taquin'}.
-- Emojis signatures : ${(modelProfile?.favoriteEmojis || []).join(' ')}.
-- ${platformTerminology}
-- Langue requise : ${language === 'us' ? 'ANGLAIS US (Américain)' : 'FRANÇAIS'}
-- VIBE & CIRCONSTANCE SÉLECTIONNÉE (PRIORITAIRE) : "${moodName}" (${moodObj?.badge || 'Thématique'})
-  * Consigne psychologique de la vibe : ${moodGuidance}
-${moodSpecificInstructions ? `  * DIRECTIVE IMPÉRATIVE DE LA VIBE : ${moodSpecificInstructions.trim()}` : ''}
-- Niveau d'audace / Hot level (1-5) : ${hotLevel}/5
-- ${pushTypeDirective}
-- ${lengthDirective}
-- Média joint : ${mediaType} ${isPaidPush && priceSuggestion ? `(Prix suggéré PPV : ${priceSuggestion} €/$)` : (isPaidPush ? '' : '(Média offert / relance discussion)')}
-- Contexte du média (ou sujet de discussion) : "${mediaContext || 'Moment intime spontané dans la chambre'}"
-- Appel à l'action visé : ${isPaidPush ? callToAction : 'dm_talk (relancer la discussion en DM)'}
-- Cible : ${targetAudience}
-- Fuseau horaire ciblé : ${resolvedTime.tzZone} (Heure locale fan : ${resolvedTime.timeString} — ${resolvedTime.periodLabelFr})
-- Ambiance temporelle obligatoire : ${resolvedTime.contextualAtmosphereFr}
-- Mots interdits en raison de l'heure : ${resolvedTime.forbiddenWordsFr.join(', ')}
-${trainingContext}
-${rulesContext}
-
-${langInstructions}
-
-FORMAT ATTENDU :
-Renvoie UNIQUEMENT un objet JSON valide avec STRICTEMENT 6 PROPOSITIONS TOTALEMENT LIBRES ET DIVERSES :
-Important : Ne suis AUCUN angle pré-défini. Sois 100% libre et invente 6 approches complètement uniques et imprévisibles pour qu'aucune ne se ressemble.
-Donne à chaque proposition un "angleLabel" court et original inventé pour l'occasion (ex: "Pensée impulsive", "Pique complice", "Détail troublant", "Provocation douce", "Instinct brut", "Humeur sans filtre", etc.) :
-{
-  "recommendations": {
-    "bestSendTimeFanTz": "${resolvedTime.timeString} (${resolvedTime.periodLabelFr})",
-    "currentFanLocalTime": "${resolvedTime.timeString} — ${resolvedTime.periodLabelFr}",
-    "pricingTip": "${isPaidPush ? 'Conseil court sur le prix optimal du PPV' : 'Conseil d\'engagement : une affirmation forte génère 3x plus de réponses'}",
-    "safetyAudit": "Note de conformité aux règles de la plateforme (termes validés)"
-  },
-  "variations": [
-    {
-      "id": "var-1",
-      "angle": "libre_1",
-      "angleLabel": "Titre créatif unique pour cette proposition",
-      "message": "Texte court, percutant et unique...",
-      "estimatedOpenRate": "88%",
-      "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '15€') : 'Gratuit'}",
-      "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Intention psychologique singulière"
-    },
-    {
-      "id": "var-2",
-      "angle": "libre_2",
-      "angleLabel": "Autre titre créatif unique (approche distincte)",
-      "message": "Texte court avec une énergie et un ton radicalement différents...",
-      "estimatedOpenRate": "92%",
-      "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '12€') : 'Gratuit'}",
-      "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Autre levier relationnel"
-    },
-    {
-      "id": "var-3",
-      "angle": "libre_3",
-      "angleLabel": "Autre titre créatif unique (rythme différent)",
-      "message": "Texte court avec une émotion distincte...",
-      "estimatedOpenRate": "86%",
-      "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '18€') : 'Gratuit'}",
-      "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Scène ou détail spontané"
-    },
-    {
-      "id": "var-4",
-      "angle": "libre_4",
-      "angleLabel": "Autre titre créatif unique (énergie inattendue)",
-      "message": "Texte court surprenant...",
-      "estimatedOpenRate": "90%",
-      "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '15€') : 'Gratuit'}",
-      "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Déclencheur d'intérêt inattendu"
-    },
-    {
-      "id": "var-5",
-      "angle": "libre_5",
-      "angleLabel": "Autre titre créatif unique (ton brut ou complice)",
-      "message": "Texte court avec un naturel désarmant...",
-      "estimatedOpenRate": "89%",
-      "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '14€') : 'Gratuit'}",
-      "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Spontanéité organique"
-    },
-    {
-      "id": "var-6",
-      "angle": "libre_6",
-      "angleLabel": "Autre titre créatif unique (audace ou confidence)",
-      "message": "Texte court marquant et singulier...",
-      "estimatedOpenRate": "94%",
-      "suggestedPrice": "${isPaidPush ? (priceSuggestion ? priceSuggestion + (language === 'us' ? '$' : '€') : '20€') : 'Gratuit'}",
-      "mediaNotice": "${isPaidPush ? 'PPV Verrouillé' : 'Offert / DM'}",
-      "timeContextNote": "Confidence ou exclusivité"
-    }
-  ]
-}`;
+    const llmTemperature = temperature;
+    const geminiTemperature = Math.min(1.2, temperature);
 
     let parsedResult: any = null;
     let source: 'openrouter' | 'fallback_engine' = 'fallback_engine';
@@ -560,6 +317,9 @@ Donne à chaque proposition un "angleLabel" court et original inventé pour l'oc
         hotLevel,
         pushType,
         sentenceCount,
+        varietyLevel,
+        targetAudience,
+        previousMessages,
         timeContext: {
           ...timeContext,
           selectedTzZone: resolvedTime.tzZone,
@@ -631,9 +391,22 @@ Donne à chaque proposition un "angleLabel" court et original inventé pour l'oc
 
     res.json({
       success: true,
-      modelUsed: apiKey ? selectedModel : 'MusePush High-Conversion Engine',
+      modelUsed: apiKey ? selectedModel : (source === 'openrouter' ? 'Intelligence Artificielle' : 'MusePush High-Conversion Engine'),
       source,
       openRouterStatus: openRouterDiagnostic,
+      activeParametersSummary: parsedResult.activeParametersSummary || {
+        mood,
+        varietyLevel,
+        sentenceCount,
+        pushType,
+        mediaType,
+        hasMediaContext: Boolean(mediaContext && mediaContext.trim()),
+        hasPreviousMessagesAvoidance: Array.isArray(previousMessages) && previousMessages.length > 0,
+        antiRepetitionCount: Array.isArray(previousMessages) ? previousMessages.length : 0,
+        timeZone: resolvedTime.tzZone,
+        fanTime: resolvedTime.timeString,
+        period: resolvedTime.periodLabelFr
+      },
       variations: parsedResult.variations || [],
       recommendations: parsedResult.recommendations || {
         bestSendTimeFanTz: `${resolvedTime.timeString} (${resolvedTime.periodLabelFr})`,

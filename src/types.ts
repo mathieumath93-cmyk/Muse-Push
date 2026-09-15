@@ -80,6 +80,7 @@ export interface PushRequestConfig {
   // Few-shot training context passed to LLM
   trainingExamples?: WinningExample[];
   agencyPlaybookRules?: string; // Rules like "Never say subscribe", "Always use 2 lowercase words at the start", etc.
+  previousMessages?: string[]; // Anti-repetition blacklist: previously generated phrases to exclude
 }
 
 export interface GeneratedVariation {
@@ -99,6 +100,7 @@ export interface OpenRouterStatusInfo {
   error?: string;
   model?: string;
   latencyMs?: number;
+  creditInfo?: string;
 }
 
 export interface OpenRouterTestResult {
@@ -116,6 +118,15 @@ export interface GenerationResult {
   source: 'openrouter' | 'fallback_engine';
   openRouterStatus?: OpenRouterStatusInfo;
   variations: GeneratedVariation[];
+  activeParametersSummary?: {
+    mood: string;
+    audience: string;
+    hotLevel: number;
+    mediaContext?: string;
+    timeContext: string;
+    varietyLevel: string;
+    pushType: string;
+  };
   recommendations: {
     bestSendTimeFanTz: string;
     currentFanLocalTime: string;

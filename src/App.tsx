@@ -185,6 +185,7 @@ export default function App() {
 
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
+  const [generatedMessagesHistory, setGeneratedMessagesHistory] = useState<string[]>([]);
 
   // Keep state synced
   useEffect(() => {
@@ -318,6 +319,12 @@ export default function App() {
         ? 1.10
         : (config.varietyLevel === 'low' ? 0.40 : 0.75);
 
+      // Collect all recently generated messages to strictly enforce novelty and ban repetition
+      const previousMessagesToAvoid = Array.from(new Set([
+        ...generatedMessagesHistory,
+        ...(generationResult?.variations?.map(v => v.message).filter(Boolean) || [])
+      ])).slice(-25);
+
       const result = await executePushGeneration({
         modelProfile: selectedModel,
         platform,
@@ -333,6 +340,7 @@ export default function App() {
         targetAudience: config.targetAudience,
         hotLevel: config.hotLevel,
         timeContext: config.timeContext,
+        previousMessages: previousMessagesToAvoid,
         trainingExamples: relevantTraining,
         agencyPlaybookRules,
         openRouterConfig: {
@@ -344,6 +352,10 @@ export default function App() {
 
       if (result && result.success) {
         setGenerationResult(result);
+        if (Array.isArray(result.variations)) {
+          const freshTexts = result.variations.map(v => v.message).filter(Boolean);
+          setGeneratedMessagesHistory(prev => Array.from(new Set([...prev, ...freshTexts])).slice(-30));
+        }
         if (result.openRouterStatus) {
           setOpenRouterStatus({
             success: result.openRouterStatus.success,
@@ -465,6 +477,9 @@ export default function App() {
                 platform={platform}
                 modelName={selectedModel.name}
                 pushType={config.pushType}
+                onRegenerateFresh={handleGeneratePush}
+                onResetHistory={() => setGeneratedMessagesHistory([])}
+                historyCount={generatedMessagesHistory.length}
               />
             </div>
           </div>
