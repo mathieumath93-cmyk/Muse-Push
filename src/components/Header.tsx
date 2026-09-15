@@ -202,26 +202,30 @@ export const Header: React.FC<HeaderProps> = ({
                 ) : !hasApiKey ? (
                   <>
                     <span className="w-2 h-2 rounded-full bg-zinc-500" />
-                    <span className="font-mono text-[11px] text-zinc-300">OpenRouter (Clé API)</span>
+                    <span className="font-mono text-[11px] text-zinc-300">
+                      {selectedModel === '@preset/push-bot' ? '@preset/push-bot' : 'OpenRouter'}
+                    </span>
                   </>
                 ) : openRouterStatus?.status === 'connected' ? (
                   <>
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
                     <span className="font-mono text-[11px] font-bold text-emerald-300 flex items-center gap-1">
-                      OpenRouter OK {openRouterStatus.latencyMs ? `(${openRouterStatus.latencyMs}ms)` : ''}
+                      {selectedModel === '@preset/push-bot' ? 'push-bot OK' : 'OpenRouter OK'} {openRouterStatus.latencyMs ? `(${openRouterStatus.latencyMs}ms)` : ''}
                     </span>
                   </>
                 ) : openRouterStatus?.status === 'error' ? (
                   <>
                     <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
                     <span className="font-mono text-[11px] font-bold text-rose-300">
-                      OpenRouter Erreur
+                      {selectedModel === '@preset/push-bot' ? 'push-bot Erreur' : 'OpenRouter Erreur'}
                     </span>
                   </>
                 ) : (
                   <>
                     <span className="w-2 h-2 rounded-full bg-purple-400" />
-                    <span className="font-mono text-[11px] text-purple-200">OpenRouter ✓</span>
+                    <span className="font-mono text-[11px] text-purple-200">
+                      {selectedModel === '@preset/push-bot' ? '@preset/push-bot ✓' : 'OpenRouter ✓'}
+                    </span>
                   </>
                 )}
               </div>

@@ -120,12 +120,20 @@ export interface GenerationResult {
   variations: GeneratedVariation[];
   activeParametersSummary?: {
     mood: string;
-    audience: string;
-    hotLevel: number;
+    audience?: string;
+    hotLevel?: number;
     mediaContext?: string;
-    timeContext: string;
-    varietyLevel: string;
-    pushType: string;
+    timeContext?: string;
+    varietyLevel?: string;
+    pushType?: string;
+    sentenceCount?: string;
+    hasMediaContext?: boolean;
+    hasPreviousMessagesAvoidance?: boolean;
+    antiRepetitionCount?: number;
+    timeZone?: string;
+    fanTime?: string;
+    period?: string;
+    [key: string]: any;
   };
   recommendations: {
     bestSendTimeFanTz: string;

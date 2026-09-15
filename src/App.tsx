@@ -55,7 +55,21 @@ export default function App() {
   const [openRouterApiKey, setOpenRouterApiKey] = useState<string>(() => {
     return localStorage.getItem('musepush_openrouter_key') || '';
   });
-  const [selectedLlmModel, setSelectedLlmModel] = useState<string>('anthropic/claude-3.5-sonnet');
+  const [selectedLlmModel, setSelectedLlmModel] = useState<string>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('musepush_openrouter_model') : null;
+    if (!saved || saved === 'anthropic/claude-3.5-sonnet') {
+      if (typeof window !== 'undefined') localStorage.setItem('musepush_openrouter_model', '@preset/push-bot');
+      return '@preset/push-bot';
+    }
+    return saved;
+  });
+
+  const handleSelectLlmModel = (model: string) => {
+    setSelectedLlmModel(model);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('musepush_openrouter_model', model);
+    }
+  };
   const [temperature, setTemperature] = useState<number>(0.85);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [openRouterStatus, setOpenRouterStatus] = useState<OpenRouterTestResult | null>(null);
@@ -515,7 +529,7 @@ export default function App() {
         apiKey={openRouterApiKey}
         onSaveApiKey={handleSaveApiKey}
         selectedModel={selectedLlmModel}
-        onSelectModel={setSelectedLlmModel}
+        onSelectModel={handleSelectLlmModel}
         temperature={temperature}
         onSetTemperature={setTemperature}
         openRouterStatus={openRouterStatus}

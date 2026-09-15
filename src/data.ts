@@ -278,7 +278,8 @@ export const TIME_ZONES = [
 ] as const;
 
 export const OPENROUTER_MODELS = [
-  { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Ultra Naturel & Nuancé)', provider: 'Anthropic', badge: 'Recommandé' },
+  { id: '@preset/push-bot', name: 'Preset Bot Push (@preset/push-bot)', provider: 'OpenRouter Preset', badge: 'Preset Actif' },
+  { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Ultra Naturel & Nuancé)', provider: 'Anthropic', badge: 'Qualité' },
   { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B Instruct (Créatif & Non-bridé)', provider: 'Meta', badge: 'Top Roleplay' },
   { id: 'openai/gpt-4o', name: 'GPT-4o (Rapide & Direct)', provider: 'OpenAI', badge: 'Standard' },
   { id: 'deepseek/deepseek-chat', name: 'DeepSeek Chat V3 (Économique & Fluide)', provider: 'DeepSeek', badge: 'Éco' },

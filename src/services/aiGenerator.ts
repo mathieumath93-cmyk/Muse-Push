@@ -15,6 +15,7 @@ import { buildPushPrompts } from './pushPromptBuilder';
 import { getResolvedTime, TzZone } from '../utils/timeZoneHelper';
 import { getMoodDetail } from '../data';
 import { enforceStrictVariationUniqueness } from './deduplicationGuard';
+import { parseOpenRouterPushResponse } from './openRouterResponseParser';
 
 export interface GeneratePushParams {
   modelProfile: ModelProfile;
@@ -210,7 +211,7 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
 
   // 2. Second attempt: Direct OpenRouter call if user entered their API key
   const apiKey = openRouterConfig?.apiKey?.trim() || (typeof window !== 'undefined' ? localStorage.getItem('musepush_openrouter_key') || '' : '');
-  const selectedLlmModel = openRouterConfig?.model || 'anthropic/claude-3.5-sonnet';
+  const selectedLlmModel = openRouterConfig?.model || '@preset/push-bot';
 
   if (apiKey) {
     try {
@@ -242,7 +243,21 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
       const temperature = prompts.temperature;
 
       const directStartTime = Date.now();
-      const orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const isPreset = selectedLlmModel.startsWith('@');
+      const reqPayload: any = {
+        model: selectedLlmModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature
+      };
+
+      if (!isPreset) {
+        reqPayload.response_format = { type: 'json_object' };
+      }
+
+      let orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -250,16 +265,23 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
           'X-Title': 'MusePush AI Studio',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: selectedLlmModel,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          response_format: { type: 'json_object' },
-          temperature
-        })
+        body: JSON.stringify(reqPayload)
       });
+
+      // If 400 with response_format, retry cleanly without it
+      if (orResponse.status === 400 && reqPayload.response_format) {
+        delete reqPayload.response_format;
+        orResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://musepush.app',
+            'X-Title': 'MusePush AI Studio',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(reqPayload)
+        });
+      }
 
       const directLatency = Date.now() - directStartTime;
 
@@ -267,10 +289,17 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
         const data = await orResponse.json();
         const content = data.choices?.[0]?.message?.content;
         if (content) {
-          const cleaned = content.replace(/```json/gi, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(cleaned);
-          if (parsed && Array.isArray(parsed.variations) && parsed.variations.length > 0) {
-            let sanitizedVars = parsed.variations;
+          const parsedVariations = parseOpenRouterPushResponse(content, {
+            isUs: language === 'us',
+            isPaid: isPaidPush,
+            priceVal: priceSuggestion || 15,
+            mood,
+            mediaNotice: mediaContext,
+            previousHistory: params.previousMessages
+          });
+
+          if (parsedVariations && parsedVariations.length > 0) {
+            let sanitizedVars = parsedVariations;
             if (resolvedTime.period === 'lunch' || resolvedTime.period === 'afternoon') {
               sanitizedVars = sanitizedVars.map((v: any) => {
                 if (!v || typeof v.message !== 'string') return v;
@@ -290,15 +319,6 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
               });
             }
 
-            sanitizedVars = enforceStrictVariationUniqueness(sanitizedVars, {
-              previousHistory: params.previousMessages,
-              isUs: language === 'us',
-              isPaid: isPaidPush,
-              priceVal: priceSuggestion,
-              mood,
-              mediaContext
-            });
-
             return {
               success: true,
               source: 'openrouter',
@@ -309,7 +329,7 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
                 model: selectedLlmModel,
                 latencyMs: directLatency
               },
-              activeParametersSummary: parsed.activeParametersSummary || {
+              activeParametersSummary: {
                 mood,
                 varietyLevel,
                 sentenceCount,
@@ -322,7 +342,7 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
                 fanTime: resolvedTime.timeString,
                 period: resolvedTime.periodLabelFr
               },
-              recommendations: parsed.recommendations || {
+              recommendations: {
                 bestSendTimeFanTz: `${resolvedTime.timeString} (${resolvedTime.periodLabelFr})`,
                 currentFanLocalTime: `${resolvedTime.timeString} — ${resolvedTime.periodLabelFr}`,
                 pricingTip: isPaidPush ? `Prix conseillé: ${priceSuggestion || 15}€` : 'Push gratuit de relance',

@@ -7,6 +7,7 @@ import { generateDynamicPushVariations } from './src/services/dynamicPushEngine'
 import { getResolvedTime } from './src/utils/timeZoneHelper';
 import { MOODS, getMoodDetail } from './src/data';
 import { buildPushPrompts } from './src/services/pushPromptBuilder';
+import { parseOpenRouterPushResponse } from './src/services/openRouterResponseParser';
 
 dotenv.config();
 
@@ -38,7 +39,7 @@ app.get('/api/health', (req, res) => {
 app.post('/api/test-openrouter', async (req, res) => {
   const startTime = Date.now();
   try {
-    const { apiKey, model = 'anthropic/claude-3.5-sonnet' } = req.body;
+    const { apiKey, model = '@preset/push-bot' } = req.body;
     const keyToUse = (apiKey || process.env.OPENROUTER_API_KEY || '').trim();
 
     if (!keyToUse) {
@@ -183,7 +184,7 @@ app.post('/api/generate-push', async (req, res) => {
     } = req.body;
 
     const apiKey = openRouterConfig?.apiKey || process.env.OPENROUTER_API_KEY;
-    const selectedModel = openRouterConfig?.model || 'anthropic/claude-3.5-sonnet';
+    const selectedModel = openRouterConfig?.model || '@preset/push-bot';
 
     // Build comprehensive prompts with 6 distinct psychological triggers and strict anti-repetition rules
     const {
@@ -226,11 +227,26 @@ app.post('/api/generate-push', async (req, res) => {
       latencyMs: 0
     };
 
-    // 1. If OpenRouter API key is provided, call OpenRouter
+    // 1. If OpenRouter API key is provided, call OpenRouter (with preset resilience)
     if (apiKey) {
       const orStartTime = Date.now();
       try {
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        const isPreset = selectedModel.startsWith('@');
+        const reqPayload: any = {
+          model: selectedModel,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: llmTemperature
+        };
+
+        // Don't force response_format on custom presets by default as it can trigger HTTP 400
+        if (!isPreset) {
+          reqPayload.response_format = { type: 'json_object' };
+        }
+
+        let response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
@@ -238,16 +254,23 @@ app.post('/api/generate-push', async (req, res) => {
             'X-Title': 'MusePush AI Studio',
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            model: selectedModel,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt }
-            ],
-            response_format: { type: 'json_object' },
-            temperature: llmTemperature
-          })
+          body: JSON.stringify(reqPayload)
         });
+
+        // If 400 Bad Request and response_format was used, retry immediately without it
+        if (response.status === 400 && reqPayload.response_format) {
+          delete reqPayload.response_format;
+          response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'HTTP-Referer': process.env.APP_URL || 'https://musepush.applet',
+              'X-Title': 'MusePush AI Studio',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(reqPayload)
+          });
+        }
 
         openRouterDiagnostic.latencyMs = Date.now() - orStartTime;
 
@@ -255,15 +278,27 @@ app.post('/api/generate-push', async (req, res) => {
           const data = await response.json();
           const content = data.choices?.[0]?.message?.content;
           if (content) {
-            try {
-              const cleaned = content.replace(/```json/gi, '').replace(/```/g, '').trim();
-              parsedResult = JSON.parse(cleaned);
+            const parsedVariations = parseOpenRouterPushResponse(content, {
+              isUs: language === 'us',
+              isPaid: pushType === 'paid_ppv',
+              priceVal: priceSuggestion || 15,
+              mood,
+              mediaNotice: mediaContext,
+              previousHistory: previousMessages
+            });
+
+            if (parsedVariations && parsedVariations.length > 0) {
+              parsedResult = {
+                variations: parsedVariations
+              };
               source = 'openrouter';
               openRouterDiagnostic.success = true;
-            } catch (err: any) {
-              console.warn('Could not parse OpenRouter response as strict JSON, falling back:', err);
-              openRouterDiagnostic.error = 'Réponse OpenRouter non-JSON';
+            } else {
+              console.warn('Could not parse OpenRouter response content:', content.slice(0, 200));
+              openRouterDiagnostic.error = 'Réponse reçue non convertible en 6 accroches distinctes';
             }
+          } else {
+            openRouterDiagnostic.error = 'Message vide retourné par OpenRouter';
           }
         } else {
           const errText = await response.text();

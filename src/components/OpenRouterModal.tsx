@@ -188,11 +188,35 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
             </p>
           </div>
 
-          {/* Model selection */}
+          {/* Model & Preset selection */}
           <div>
-            <label className="text-xs font-medium text-zinc-300 block mb-1.5 flex items-center gap-1.5">
-              <Settings2 className="w-3.5 h-3.5 text-indigo-400" /> Modèle LLM Cible
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
+                <Settings2 className="w-3.5 h-3.5 text-indigo-400" /> Modèle ou Preset Cible
+              </label>
+              {selectedModel !== '@preset/push-bot' && (
+                <button
+                  type="button"
+                  onClick={() => onSelectModel('@preset/push-bot')}
+                  className="text-[10px] text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-lg transition"
+                >
+                  ⚡ Activer @preset/push-bot
+                </button>
+              )}
+            </div>
+
+            {selectedModel === '@preset/push-bot' && (
+              <div className="mb-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-[11px] text-purple-200 flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-white">Flux redirigé vers @preset/push-bot</span>
+                  <p className="text-zinc-300 text-[10px]">
+                    Les requêtes OpenRouter ciblent désormais directement ton preset dédié avec analyseur résilient multi-format pour éviter les fallbacks.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
               {OPENROUTER_MODELS.map((m) => {
                 const isSelected = selectedModel === m.id;
@@ -209,8 +233,10 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
                     <div>
                       <div className="text-xs font-semibold flex items-center gap-2">
                         {m.name}
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-zinc-300 font-mono">
-                          {m.provider}
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                          m.id.startsWith('@') ? 'bg-purple-500/20 text-purple-300 font-bold' : 'bg-white/10 text-zinc-300'
+                        }`}>
+                          {m.badge || m.provider}
                         </span>
                       </div>
                     </div>
@@ -218,6 +244,31 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
                   </div>
                 );
               })}
+            </div>
+
+            {/* Custom preset / model input */}
+            <div className="mt-2 pt-2 border-t border-white/5">
+              <label className="text-[10px] text-zinc-400 block mb-1">
+                Ou saisir un preset personnalisé OpenRouter (@preset/...) :
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="@preset/nom-du-preset"
+                  value={selectedModel}
+                  onChange={e => onSelectModel(e.target.value.trim())}
+                  className="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-purple-300 font-mono focus:outline-none focus:border-purple-500"
+                />
+                {selectedModel !== '@preset/push-bot' && (
+                  <button
+                    type="button"
+                    onClick={() => onSelectModel('@preset/push-bot')}
+                    className="px-2 py-1 text-[10px] bg-white/5 hover:bg-white/10 text-zinc-300 rounded-lg transition"
+                  >
+                    Reset @preset/push-bot
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
