@@ -14,6 +14,7 @@ import { generateDynamicPushVariations } from './dynamicPushEngine';
 import { buildPushPrompts } from './pushPromptBuilder';
 import { getResolvedTime, TzZone } from '../utils/timeZoneHelper';
 import { getMoodDetail } from '../data';
+import { enforceStrictVariationUniqueness } from './deduplicationGuard';
 
 export interface GeneratePushParams {
   modelProfile: ModelProfile;
@@ -288,6 +289,16 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
                 return { ...v, message: msg };
               });
             }
+
+            sanitizedVars = enforceStrictVariationUniqueness(sanitizedVars, {
+              previousHistory: params.previousMessages,
+              isUs: language === 'us',
+              isPaid: isPaidPush,
+              priceVal: priceSuggestion,
+              mood,
+              mediaContext
+            });
+
             return {
               success: true,
               source: 'openrouter',

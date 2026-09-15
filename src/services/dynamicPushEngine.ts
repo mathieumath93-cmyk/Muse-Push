@@ -9,6 +9,10 @@ import {
   GenerationResult 
 } from '../types';
 import { getResolvedTime, ResolvedTimeContext, TzZone, TimeOfDayPeriod } from '../utils/timeZoneHelper';
+import { 
+  generateSmartMediaContextVariations, 
+  enforceStrictVariationUniqueness 
+} from './deduplicationGuard';
 
 interface DynamicEngineParams {
   modelProfile?: ModelProfile;
@@ -1285,135 +1289,17 @@ function buildContextualMediaVariations(params: {
   period: string;
   priceVal: number;
 }): GeneratedVariation[] {
-  const cleanCtx = params.mediaContext.trim();
-  const em1 = params.em1;
-  const em2 = params.em2;
-  const isPaid = params.isPaid;
-  const isUs = params.isUs;
-  const hot = params.hotLevel;
-  const aud = params.targetAudience;
-
-  const variations: GeneratedVariation[] = [];
-
-  if (!isUs) {
-    // Proposition 1: Ancrage action direct & confidence
-    let msg1 = '';
-    if (aud === 'vip_spenders') {
-      msg1 = `rien que pour mes privilégiés : ${cleanCtx}... je ne montre ça à personne d'autre ${em1}`;
-    } else if (aud === 'inactive_subs') {
-      msg1 = `tu te cachais où ? Regarde ce que tu as raté : ${cleanCtx}... avoue que tu n'attendais pas ça ${em1}`;
-    } else if (aud === 'new_subs') {
-      msg1 = `pour te souhaiter la bienvenue comme il se doit : ${cleanCtx}... voilà ce qui t'attend ici ${em1}`;
-    } else {
-      msg1 = hot >= 4
-        ? `j'ai failli ne jamais oser envoyer ça : ${cleanCtx}... dis-moi si tu aurais réussi à garder tes mains calmes ${em1}`
-        : `petite confidence en direct : ${cleanCtx}... dis-moi honnêtement comment tu me trouves ${em1}`;
-    }
-    if (isPaid && !params.isOneLine) {
-      msg1 += `\n\ndébloque pour voir comment ça se termine`;
-    }
-
-    // Proposition 2: Défi regard & audace
-    let msg2 = '';
-    if (hot >= 4) {
-      msg2 = `${cleanCtx}... j'en ai encore des frissons rien qu'en y repensant, regarde vite ${em2}`;
-    } else if (hot <= 2) {
-      msg2 = `un petit moment de douceur pour toi : ${cleanCtx}... j'espère que ça va te plaire 🤍`;
-    } else {
-      msg2 = `avoue que tu ne t'attendais pas à me voir comme ça aujourd'hui : ${cleanCtx} 🫦`;
-    }
-    if (isPaid && !params.isOneLine) {
-      msg2 += `\n\nje te laisse découvrir le reste`;
-    }
-
-    // Proposition 3: Question complice & électrochoc
-    let msg3 = `${cleanCtx}... dis-moi direct ce que tu ferais si tu étais là avec moi ${em1}`;
-    if (isPaid && !params.isOneLine) {
-      msg3 += `\n\nla suite est encore plus osée`;
-    }
-
-    variations.push(
-      {
-        id: `var-ctx-1-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        angle: 'media_action_anchor',
-        angleLabel: 'Ancrage Média Réel',
-        message: msg1,
-        estimatedOpenRate: '96%',
-        suggestedPrice: isPaid ? `${params.priceVal}€` : 'Gratuit',
-        mediaNotice: cleanCtx,
-        timeContextNote: 'Directement calibré sur le contexte média fourni'
-      },
-      {
-        id: `var-ctx-2-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        angle: 'media_visual_tease',
-        angleLabel: 'Curiosité Scène',
-        message: msg2,
-        estimatedOpenRate: '93%',
-        suggestedPrice: isPaid ? `${Math.max(8, params.priceVal + 2)}€` : 'Gratuit',
-        mediaNotice: cleanCtx,
-        timeContextNote: 'Angle visuel sur la scène décrite'
-      },
-      {
-        id: `var-ctx-3-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        angle: 'media_dilemma_scene',
-        angleLabel: 'Dilemme de Scène',
-        message: msg3,
-        estimatedOpenRate: '94%',
-        suggestedPrice: isPaid ? `${Math.max(8, params.priceVal - 2)}€` : 'Gratuit',
-        mediaNotice: cleanCtx,
-        timeContextNote: 'Question complice sur le scénario'
-      }
-    );
-  } else {
-    // US English version
-    let msg1 = aud === 'vip_spenders'
-      ? `just for my inner circle: ${cleanCtx}... keeping this private between us ${em1}`
-      : (aud === 'inactive_subs'
-        ? `where have you been hiding? Look what you missed: ${cleanCtx}... bet you didn't expect this ${em1}`
-        : `${cleanCtx}... honestly wasn't sure if I should share this, look what happened ${em1}`);
-    if (isPaid && !params.isOneLine) msg1 += `\n\ntap to see how it ends`;
-
-    let msg2 = `${cleanCtx}... still getting goosebumps thinking about it, take a look ${em2}`;
-    if (isPaid && !params.isOneLine) msg2 += `\n\nunlock to see the full view`;
-
-    let msg3 = `${cleanCtx}... tell me truthfully what you would do if you were right here ${em1}`;
-    if (isPaid && !params.isOneLine) msg3 += `\n\nit gets even wilder`;
-
-    variations.push(
-      {
-        id: `var-ctx-1-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        angle: 'media_action_anchor',
-        angleLabel: 'Real Media Anchor',
-        message: msg1,
-        estimatedOpenRate: '96%',
-        suggestedPrice: isPaid ? `$${params.priceVal}` : 'Free',
-        mediaNotice: cleanCtx,
-        timeContextNote: 'Directly tailored to the custom media context'
-      },
-      {
-        id: `var-ctx-2-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        angle: 'media_visual_tease',
-        angleLabel: 'Visual Curiosity',
-        message: msg2,
-        estimatedOpenRate: '93%',
-        suggestedPrice: isPaid ? `$${Math.max(8, params.priceVal + 2)}` : 'Free',
-        mediaNotice: cleanCtx,
-        timeContextNote: 'Visual angle on described scene'
-      },
-      {
-        id: `var-ctx-3-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        angle: 'media_dilemma_scene',
-        angleLabel: 'Scene Dilemma',
-        message: msg3,
-        estimatedOpenRate: '94%',
-        suggestedPrice: isPaid ? `$${Math.max(8, params.priceVal - 2)}` : 'Free',
-        mediaNotice: cleanCtx,
-        timeContextNote: 'Interactive hook on scenario'
-      }
-    );
-  }
-
-  return variations;
+  return generateSmartMediaContextVariations({
+    mediaContext: params.mediaContext,
+    isUs: params.isUs,
+    isPaid: params.isPaid,
+    isOneLine: params.isOneLine,
+    hotLevel: params.hotLevel,
+    targetAudience: params.targetAudience,
+    priceVal: params.priceVal,
+    em1: params.em1,
+    em2: params.em2
+  });
 }
 
 export function generateDynamicPushVariations(params: DynamicEngineParams): {
@@ -1578,7 +1464,7 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
     };
   });
 
-  // If user provided a specific mediaContext, inject tailored contextual variations into the top slots!
+  // If user provided a specific mediaContext, inject tailored contextual variations across all 6 slots!
   if (mediaContext && mediaContext.trim().length > 3) {
     const contextualVariations = buildContextualMediaVariations({
       mediaContext,
@@ -1592,9 +1478,20 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
       period,
       priceVal
     });
-    // Replace the first 3 variations with custom media context variations
-    variations = [...contextualVariations, ...variations.slice(3)];
+    // Replace all variations with smart contextual variations, each having a unique opener and angle
+    variations = contextualVariations.slice(0, 6);
   }
+
+  // Universal deduplication and anti-repetition guard:
+  // Guarantees zero duplicate openers, zero identical beginnings, and zero reuse from previous messages
+  variations = enforceStrictVariationUniqueness(variations, {
+    previousHistory: previousMessages,
+    isUs,
+    isPaid,
+    priceVal,
+    mood,
+    mediaContext
+  });
 
   const bestTimeWindows = isUs
     ? (period === 'lunch' ? [`${resolvedTime.timeString} (Mid-day peak right now)`] : [`${resolvedTime.timeString} (${resolvedTime.periodLabelUs})`])

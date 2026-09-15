@@ -327,10 +327,12 @@ export function buildPushPrompts(params: BuildPushPromptsParams): {
     mediaContextDirective = isUs
       ? `\nCRITICAL MEDIA CONTEXT PROVIDED BY CREATOR (ABSOLUTE PRIORITY):
 "${mediaContext.trim()}"
--> MANDATORY: Every proposition MUST directly center on, describe, or reference this exact scene, action, outfit, or moment! Do NOT make up an unrelated scene when the creator provided a specific scenario.`
+-> MANDATORY: Every proposition MUST directly evoke and center on this exact scene, action, or setting!
+-> STRICT FORBIDDEN RULE: NEVER copy-paste the raw description text as the beginning of the message! NEVER make multiple propositions start with the same words! Each proposition must address a different sensory angle of the scene (e.g. one on the lighting/atmosphere, one on a provocative question, one on a spontaneous confession, one on what the camera caught), using 100% unique opening words!`
       : `\nCONTEXTE PRÉCIS DU MÉDIA FOURNI PAR LA CRÉATRICE (PRIORITÉ ABSOLUE) :
 "${mediaContext.trim()}"
--> OBLIGATION STRICTE : Les 6 propositions DOIVENT impérativement et directement se baser sur cette action, ces vêtements, cette tenue ou ce moment précis décrit par la créatrice ! INTERDICTION de fabriquer un scénario générique déconnecté de cette description.`;
+-> OBLIGATION STRICTE : Les 6 propositions DOIVENT impérativement faire référence à cette scène, ce moment et cette ambiance !
+-> INTERDICTION FORMELLE DE COPIER-COLLER LA DESCRIPTION EN PRÉFIXE : Il est STRICTEMENT INTERDIT de coller le texte descriptif tel quel en tête de phrase ! Il est STRICTEMENT INTERDIT de faire commencer 2 propositions par les mêmes mots ! Chaque proposition doit aborder la scène sous un angle sensoriel différent (l'ambiance/la lumière dans l'une, une question complice dans l'autre, un aveu spontané, le cadrage caméra), avec des premiers mots 100% DIFFÉRENTS pour chaque proposition !`;
   }
 
   // Anti-repetition blacklist
