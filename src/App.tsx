@@ -522,6 +522,14 @@ export default function App() {
                 onRegenerateFresh={handleGeneratePush}
                 onResetHistory={() => setGeneratedMessagesHistory([])}
                 historyCount={generatedMessagesHistory.length}
+                selectedLlmModel={selectedLlmModel}
+                onSelectLlmModel={(newModel) => {
+                  setSelectedLlmModel(newModel);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('musepush_openrouter_model', newModel);
+                  }
+                }}
+                onOpenSettings={() => setIsSettingsOpen(true)}
               />
             </div>
           </div>

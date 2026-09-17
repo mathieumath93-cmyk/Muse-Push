@@ -26,6 +26,9 @@ interface VariationsDisplayProps {
   onRegenerateFresh?: () => void;
   onResetHistory?: () => void;
   historyCount?: number;
+  selectedLlmModel?: string;
+  onSelectLlmModel?: (modelId: string) => void;
+  onOpenSettings?: () => void;
 }
 
 export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
@@ -36,10 +39,35 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
   pushType = 'paid_ppv',
   onRegenerateFresh,
   onResetHistory,
-  historyCount = 0
+  historyCount = 0,
+  selectedLlmModel,
+  onSelectLlmModel,
+  onOpenSettings
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
+  const [rateLimitCountdown, setRateLimitCountdown] = useState<number>(20);
+
+  // Countdown timer for OpenRouter free tier rate limits (20 req/min)
+  React.useEffect(() => {
+    const isRateLimit = result?.openRouterStatus?.error?.includes('Quota') ||
+      result?.openRouterStatus?.error?.includes('rate limit') ||
+      result?.openRouterStatus?.error?.includes('20 req/min');
+
+    if (isRateLimit && result?.openRouterStatus?.attempted && !result.openRouterStatus.success) {
+      setRateLimitCountdown(20);
+      const interval = setInterval(() => {
+        setRateLimitCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [result?.openRouterStatus?.error, result?.openRouterStatus?.attempted]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -121,30 +149,100 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
 
       {/* Proactive OpenRouter Execution Status Banner */}
       {result.openRouterStatus?.attempted && !result.openRouterStatus.success && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-amber-200">
-          <div className="flex items-start sm:items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 mt-1 sm:mt-0 animate-ping" />
-            <div className="space-y-1">
-              <span>
-                <strong>Note OpenRouter :</strong> {result.openRouterStatus.error || 'Connexion non établie'}. Bascule automatique sur le Moteur Créatif Studio.
-              </span>
-              {(result.openRouterStatus.error?.includes('privacy') || result.openRouterStatus.error?.includes('gratuit') || result.openRouterStatus.error?.includes('free')) && (
-                <div className="pt-0.5">
-                  <a
-                    href="https://openrouter.ai/settings/privacy"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-300 hover:text-amber-100 underline"
-                  >
-                    👉 Ouvrir mes paramètres OpenRouter pour activer 'Allow data collection for free models' ↗
-                  </a>
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3 text-xs text-amber-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-start gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 mt-1 animate-pulse" />
+              <div className="space-y-1">
+                <div className="font-semibold text-amber-300 flex items-center gap-2">
+                  <span>OpenRouter : Quota gratuit temporaire (20 req/min)</span>
+                  {rateLimitCountdown > 0 ? (
+                    <span className="text-[10px] bg-amber-400/20 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-amber-400/30">
+                      Dispo dans {rateLimitCountdown}s
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      ✓ Prêt à relancer
+                    </span>
+                  )}
                 </div>
-              )}
+                <p className="text-zinc-300 text-[11px] leading-relaxed">
+                  OpenRouter plafonne les modèles gratuits à 20 req/min. Le <strong className="text-white">Moteur Créatif Studio</strong> a immédiatement pris le relais pour générer tes 6 propositions ci-dessous sans blocage.
+                </p>
+              </div>
             </div>
+            <span className="text-[10px] font-mono text-amber-300 bg-black/50 px-2.5 py-1 rounded-lg border border-amber-500/20 shrink-0 self-start sm:self-auto">
+              Fallback Studio Actif
+            </span>
           </div>
-          <span className="text-[10px] font-mono text-amber-300 bg-black/40 px-2 py-0.5 rounded shrink-0 self-start sm:self-auto">
-            Fallback Actif
-          </span>
+
+          {/* Quick Actions Bar */}
+          <div className="pt-2 border-t border-amber-500/20 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-zinc-400 font-medium">Bascule rapide sur un autre modèle Free :</span>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (onSelectLlmModel) {
+                  onSelectLlmModel('meta-llama/llama-3.3-70b-instruct:free');
+                  setTimeout(() => onRegenerateFresh && onRegenerateFresh(), 100);
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-white font-medium text-[11px] border border-white/10 transition flex items-center gap-1 cursor-pointer"
+            >
+              <span>🦙</span>
+              <span>Llama 3.3 70B Free</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (onSelectLlmModel) {
+                  onSelectLlmModel('mistralai/mistral-small-24b-instruct-2501:free');
+                  setTimeout(() => onRegenerateFresh && onRegenerateFresh(), 100);
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-white font-medium text-[11px] border border-white/10 transition flex items-center gap-1 cursor-pointer"
+            >
+              <span>🌪️</span>
+              <span>Mistral Small Free</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (onSelectLlmModel) {
+                  onSelectLlmModel('openrouter/free');
+                  setTimeout(() => onRegenerateFresh && onRegenerateFresh(), 100);
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-white font-medium text-[11px] border border-white/10 transition flex items-center gap-1 cursor-pointer"
+            >
+              <span>🌐</span>
+              <span>Auto Free</span>
+            </button>
+
+            {onRegenerateFresh && (
+              <button
+                type="button"
+                onClick={onRegenerateFresh}
+                className="ml-auto px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold text-[11px] border border-amber-500/30 transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <RefreshCw className="w-3 h-3 text-amber-300" />
+                <span>{rateLimitCountdown > 0 ? `Relancer (${rateLimitCountdown}s)` : 'Relancer maintenant'}</span>
+              </button>
+            )}
+
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className="px-2 py-1 text-[11px] text-zinc-400 hover:text-white underline cursor-pointer"
+              >
+                Gérer mes clés & modèles
+              </button>
+            )}
+          </div>
         </div>
       )}
 

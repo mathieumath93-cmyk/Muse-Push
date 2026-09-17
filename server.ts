@@ -330,31 +330,45 @@ app.post('/api/generate-push', async (req, res) => {
           });
         }
 
-        // If preset failed (e.g. 404 Preset Not Found, or No Provider), try automatic failover to openrouter/free
-        if (!response.ok && isPreset) {
-          console.warn(`Preset ${selectedModel} failed (${response.status}), attempting automatic failover to openrouter/free...`);
-          const fallbackPayload = {
-            model: 'openrouter/free',
-            models: ['openrouter/free', 'google/gemma-4-31b-it:free', 'nvidia/nemotron-3.5-lightning:free'],
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt }
-            ],
-            temperature: llmTemperature
-          };
-          const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'HTTP-Referer': process.env.APP_URL || 'https://musepush.app',
-              'X-Title': 'MusePush AI Studio',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(fallbackPayload)
-          });
-          if (fallbackResponse.ok) {
-            response = fallbackResponse;
-            selectedModel = 'openrouter/free';
+        // If primary model failed (e.g. 429 Rate Limit, 404 Not Found, 503 Overloaded, or Preset error), try automatic failover to alternative free models
+        if (!response.ok) {
+          console.warn(`Model ${selectedModel} returned status ${response.status}, attempting automatic failover to alternative free models...`);
+          const backupCandidates = [
+            'meta-llama/llama-3.3-70b-instruct:free',
+            'mistralai/mistral-small-24b-instruct-2501:free',
+            'openrouter/free',
+            'google/gemma-4-31b-it:free'
+          ].filter(m => m !== selectedModel);
+
+          for (const altModel of backupCandidates) {
+            try {
+              const fallbackPayload: any = {
+                model: altModel,
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  { role: 'user', content: userPrompt }
+                ],
+                temperature: llmTemperature
+              };
+              const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'HTTP-Referer': process.env.APP_URL || 'https://musepush.app',
+                  'X-Title': 'MusePush AI Studio',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(fallbackPayload)
+              });
+              if (fallbackResponse.ok) {
+                response = fallbackResponse;
+                selectedModel = altModel;
+                console.info(`Automatic failover succeeded on ${altModel}!`);
+                break;
+              }
+            } catch (failoverErr) {
+              console.warn(`Failover to ${altModel} failed, trying next...`, failoverErr);
+            }
           }
         }
 

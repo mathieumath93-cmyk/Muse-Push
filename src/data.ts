@@ -302,6 +302,8 @@ export const TIME_ZONES = [
 export const OPENROUTER_MODELS = [
   { id: '@preset/push-bot', name: 'Preset Bot Push (@preset/push-bot)', provider: 'OpenRouter Preset', badge: 'Ton Preset Free' },
   { id: 'openrouter/free', name: 'OpenRouter Free (Auto-routeur 100% Gratuit)', provider: 'OpenRouter', badge: '100% Gratuit' },
+  { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B Instruct Free', provider: 'Meta (Gratuit)', badge: 'Top 70B Free' },
+  { id: 'mistralai/mistral-small-24b-instruct-2501:free', name: 'Mistral Small 24B Free (Plume FR/US)', provider: 'Mistral (Gratuit)', badge: 'Top FR/US Free' },
   { id: 'google/gemma-4-31b-it:free', name: 'Gemma 4 31B Instruct Free (Google)', provider: 'Google (Gratuit)', badge: '100% Gratuit' },
   { id: 'nvidia/nemotron-3.5-lightning:free', name: 'Nemotron 3.5 Lightning Free', provider: 'Nvidia (Gratuit)', badge: '100% Gratuit' },
   { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Ultra Naturel & Nuancé)', provider: 'Anthropic', badge: 'Payant' },
