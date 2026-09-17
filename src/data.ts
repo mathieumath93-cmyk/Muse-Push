@@ -311,3 +311,17 @@ export const OPENROUTER_MODELS = [
   { id: 'deepseek/deepseek-chat', name: 'DeepSeek Chat V3 (Économique & Fluide)', provider: 'DeepSeek', badge: 'Éco' },
   { id: 'mistralai/mistral-large-2411', name: 'Mistral Large 2 (Excellente plume FR)', provider: 'Mistral', badge: 'Top FR' },
 ];
+
+export const GROQ_MODELS = [
+  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile (Ultra-Rapide & Puissant)', provider: 'Meta via Groq', badge: 'Recommandé Gratuit' },
+  { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B (Rapide & Fluide)', provider: 'Mistral via Groq', badge: '100% Gratuit' },
+  { id: 'gemma2-9b-it', name: 'Gemma 2 9B IT (Direct & Léger)', provider: 'Google via Groq', badge: '100% Gratuit' },
+  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant (Ultra-Flash)', provider: 'Meta via Groq', badge: 'Flash' },
+];
+
+export const MISTRAL_MODELS = [
+  { id: 'mistral-small-latest', name: 'Mistral Small (Plume Française de référence)', provider: 'Mistral AI', badge: 'Recommandé Gratuit' },
+  { id: 'open-mistral-nemo', name: 'Mistral NeMo 12B (Créatif & Naturel)', provider: 'Mistral AI', badge: '100% Gratuit' },
+  { id: 'ministral-8b-latest', name: 'Ministral 8B (Accroches percutantes)', provider: 'Mistral AI', badge: 'Rapide' },
+  { id: 'mistral-large-latest', name: 'Mistral Large (Qualité Écriture Maximale)', provider: 'Mistral AI', badge: 'Top Plume' },
+];

@@ -94,6 +94,18 @@ export interface GeneratedVariation {
   timeContextNote: string;
 }
 
+export type AiProviderId = 'groq' | 'mistral' | 'openrouter' | 'studio';
+
+export interface ProviderStatusInfo {
+  provider: AiProviderId;
+  attempted: boolean;
+  success: boolean;
+  error?: string;
+  model?: string;
+  latencyMs?: number;
+  creditInfo?: string;
+}
+
 export interface OpenRouterStatusInfo {
   attempted: boolean;
   success: boolean;
@@ -116,7 +128,8 @@ export interface OpenRouterTestResult {
 export interface GenerationResult {
   success: boolean;
   modelUsed: string;
-  source: 'openrouter' | 'fallback_engine';
+  source: 'openrouter' | 'groq' | 'mistral' | 'fallback_engine' | 'gemini';
+  providerStatus?: ProviderStatusInfo;
   openRouterStatus?: OpenRouterStatusInfo;
   variations: GeneratedVariation[];
   activeParametersSummary?: {

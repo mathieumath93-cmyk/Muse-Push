@@ -1,11 +1,46 @@
 import React, { useState } from 'react';
-import { OPENROUTER_MODELS } from '../data';
-import { Key, Bot, Settings2, Shield, Check, Info, RefreshCw, CheckCircle2, AlertTriangle, ExternalLink, Sparkles, Clock } from 'lucide-react';
-import { OpenRouterTestResult } from '../types';
+import { OPENROUTER_MODELS, GROQ_MODELS, MISTRAL_MODELS } from '../data';
+import { 
+  Key, 
+  Bot, 
+  Settings2, 
+  Shield, 
+  Check, 
+  Info, 
+  RefreshCw, 
+  CheckCircle2, 
+  AlertTriangle, 
+  ExternalLink, 
+  Sparkles, 
+  Zap,
+  Cpu,
+  Lock,
+  Flame
+} from 'lucide-react';
+import { OpenRouterTestResult, AiProviderId } from '../types';
 
 interface OpenRouterModalProps {
   isOpen: boolean;
   onClose: () => void;
+  activeProvider: AiProviderId;
+  onSelectProvider: (provider: AiProviderId) => void;
+  // Groq
+  groqApiKey: string;
+  onSaveGroqApiKey: (key: string) => void;
+  groqModel: string;
+  onSelectGroqModel: (model: string) => void;
+  groqStatus?: OpenRouterTestResult | null;
+  onTestGroq?: (key?: string) => Promise<void> | void;
+  isTestingGroq?: boolean;
+  // Mistral
+  mistralApiKey: string;
+  onSaveMistralApiKey: (key: string) => void;
+  mistralModel: string;
+  onSelectMistralModel: (model: string) => void;
+  mistralStatus?: OpenRouterTestResult | null;
+  onTestMistral?: (key?: string) => Promise<void> | void;
+  isTestingMistral?: boolean;
+  // OpenRouter
   apiKey: string;
   onSaveApiKey: (key: string) => void;
   selectedModel: string;
@@ -20,6 +55,25 @@ interface OpenRouterModalProps {
 export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
   isOpen,
   onClose,
+  activeProvider,
+  onSelectProvider,
+  // Groq
+  groqApiKey,
+  onSaveGroqApiKey,
+  groqModel,
+  onSelectGroqModel,
+  groqStatus,
+  onTestGroq,
+  isTestingGroq = false,
+  // Mistral
+  mistralApiKey,
+  onSaveMistralApiKey,
+  mistralModel,
+  onSelectMistralModel,
+  mistralStatus,
+  onTestMistral,
+  isTestingMistral = false,
+  // OpenRouter
   apiKey,
   onSaveApiKey,
   selectedModel,
@@ -30,327 +84,479 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
   isTesting = false,
   onTestConnection
 }) => {
-  const [tempKey, setTempKey] = useState(apiKey);
+  const [currentTab, setCurrentTab] = useState<AiProviderId>(activeProvider || 'groq');
+  const [tempGroqKey, setTempGroqKey] = useState(groqApiKey);
+  const [tempMistralKey, setTempMistralKey] = useState(mistralApiKey);
+  const [tempOrKey, setTempOrKey] = useState(apiKey);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSaveAll = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveApiKey(tempKey.trim());
+    onSelectProvider(currentTab);
+    onSaveGroqApiKey(tempGroqKey.trim());
+    onSaveMistralApiKey(tempMistralKey.trim());
+    onSaveApiKey(tempOrKey.trim());
     setSavedSuccess(true);
-    if (onTestConnection) {
-      onTestConnection(tempKey.trim());
-    }
     setTimeout(() => {
       setSavedSuccess(false);
       onClose();
-    }, 1200);
+    }, 900);
   };
-
-  const handleManualTest = () => {
-    if (onTestConnection) {
-      onTestConnection(tempKey.trim());
-    }
-  };
-
-  const isRateLimited = Boolean(
-    openRouterStatus?.message?.includes('20 req/min') ||
-    openRouterStatus?.message?.includes('Quota') ||
-    openRouterStatus?.message?.includes('rate limit')
-  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-      <div className="bg-[#161622] border border-white/10 rounded-2xl p-6 max-w-lg w-full shadow-2xl">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/5">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
-              <Bot className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+      <div className="bg-[#161622] border border-white/10 rounded-2xl p-5 sm:p-6 max-w-xl w-full shadow-2xl max-h-[92vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/5 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-gradient-to-tr from-amber-500/20 to-purple-500/20 text-amber-400 border border-white/10">
+              <Cpu className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Connexion OpenRouter & Paramètres IA</h3>
-              <p className="text-xs text-zinc-400">Pilote et teste le moteur LLM en direct</p>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                Hub Moteurs IA & Règle Anti-Saturation
+              </h3>
+              <p className="text-xs text-zinc-400">Groq LPU (Ultra-rapide), Mistral AI (FR) & OpenRouter</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-white text-sm px-2 py-1 rounded"
+            className="text-zinc-500 hover:text-white text-sm px-2 py-1 rounded transition"
           >
             ✕
           </button>
         </div>
 
-        {/* Live Diagnostics Card */}
-        <div className={`mb-4 p-3.5 rounded-xl border text-xs transition-all ${
-          isTesting
-            ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-            : openRouterStatus?.status === 'connected'
-            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
-            : isRateLimited
-            ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-            : openRouterStatus?.status === 'warning'
-            ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
-            : openRouterStatus?.status === 'error'
-            ? 'bg-rose-500/10 border-rose-500/30 text-rose-200'
-            : 'bg-white/5 border-white/10 text-zinc-400'
-        }`}>
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-2 font-semibold">
-              {isTesting ? (
-                <>
-                  <RefreshCw className="w-4 h-4 text-amber-400 animate-spin" />
-                  <span>Test de connexion OpenRouter en cours...</span>
-                </>
-              ) : openRouterStatus?.status === 'connected' ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-300 font-bold">OpenRouter opérationnel et connecté</span>
-                </>
-              ) : isRateLimited ? (
-                <>
-                  <Clock className="w-4 h-4 text-amber-400" />
-                  <span className="text-amber-300 font-bold">Quota gratuit en pause temporaire (20s)</span>
-                </>
-              ) : openRouterStatus?.status === 'warning' ? (
-                <>
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span className="text-amber-300 font-bold">Action requise sur ton compte OpenRouter</span>
-                </>
-              ) : openRouterStatus?.status === 'error' ? (
-                <>
-                  <AlertTriangle className="w-4 h-4 text-rose-400" />
-                  <span className="text-rose-300 font-bold">Problème détecté sur OpenRouter</span>
-                </>
-              ) : (
-                <>
-                  <Info className="w-4 h-4 text-zinc-400" />
-                  <span>Statut : En attente de test ou sans clé</span>
-                </>
-              )}
-            </div>
-
-            {openRouterStatus?.latencyMs ? (
-              <span className="text-[11px] font-mono text-zinc-400 bg-black/40 px-2 py-0.5 rounded border border-white/5">
-                {openRouterStatus.latencyMs}ms
-              </span>
-            ) : null}
-          </div>
-
-          <p className="text-[11px] leading-relaxed">
-            {isRateLimited
-              ? "OpenRouter plafonne les requêtes gratuites à 20 req/min. Ta clé est valide. Le Moteur Créatif Studio prend automatiquement le relais pour que tes générations continuent sans interruption."
-              : (openRouterStatus?.message || "Renseigne ta clé sk-or-v1-... puis clique sur 'Tester la clé' pour valider immédiatement le fonctionnement.")}
-          </p>
-
-          {openRouterStatus?.creditInfo && (
-            <div className="mt-2 text-[10px] font-mono text-emerald-300/80 bg-black/30 px-2 py-1 rounded inline-block">
-              {openRouterStatus.creditInfo}
-            </div>
-          )}
-
-          {openRouterStatus?.needsPrivacyAction && !isRateLimited && (
-            <div className="mt-2.5 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-[11px] text-amber-200 space-y-2">
-              <div className="font-semibold text-amber-300 flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>Déblocage obligatoire pour les modèles & presets Free :</span>
-              </div>
-              <p className="text-zinc-300 text-[10px] leading-relaxed">
-                OpenRouter exige d'activer le partage anonyme pour accéder à tous les modèles gratuits (<code className="text-amber-300">:free</code> et presets gratuits). Sans cela, OpenRouter renvoie systématiquement une erreur 404 (No available model provider).
-              </p>
-              <a
-                href="https://openrouter.ai/settings/privacy"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold border border-amber-500/30 transition"
-              >
-                Activer "Allow data collection for free models" sur OpenRouter <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          )}
-
-          {openRouterStatus?.status === 'error' && !openRouterStatus?.needsPrivacyAction && !isRateLimited && (
-            <div className="mt-2 pt-2 border-t border-rose-500/20 text-[11px] text-rose-300/90 space-y-1">
-              <p>💡 Vérifie que ta clé est bien active ou que l'option de confidentialité OpenRouter est cochée.</p>
-              <div className="flex gap-2 pt-1">
-                <a
-                  href="https://openrouter.ai/settings/privacy"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-amber-300 hover:underline font-semibold text-[10px]"
-                >
-                  Paramètres Privacy Free <ExternalLink className="w-3 h-3" />
-                </a>
-                <span className="text-zinc-600">•</span>
-                <a
-                  href="https://openrouter.ai/credits"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-rose-400 hover:underline font-semibold text-[10px]"
-                >
-                  Vérifier mes crédits <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Free models notice card */}
-        <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 via-purple-500/10 to-indigo-500/10 border border-emerald-500/20 text-[11px] space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Mode 100% Gratuit (Free Tier)
-            </span>
-            <a
-              href="https://openrouter.ai/settings/privacy"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[10px] text-emerald-400 hover:text-emerald-300 underline flex items-center gap-1"
-            >
-              Réglage Privacy ↗
-            </a>
-          </div>
-          <p className="text-zinc-300 text-[10px] leading-relaxed">
-            Pour utiliser gratuitement ton preset ou les modèles Free d'OpenRouter sans payer de crédits, assure-toi d'activer l'option <strong>"Allow data collection for free models"</strong> dans tes paramètres OpenRouter.
-          </p>
-        </div>
-
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* API Key Input + Test Button */}
-          <div>
-            <label className="text-xs font-medium text-zinc-300 block mb-1 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-amber-400" /> Clé API OpenRouter (sk-or-v1-...)
-              </span>
-              <div className="flex items-center gap-2">
-                <a
-                  href="https://openrouter.ai/keys"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] text-rose-400 hover:underline"
-                >
-                  Obtenir une clé ↗
-                </a>
-              </div>
-            </label>
-            
-            <div className="flex gap-2">
-              <input
-                type="password"
-                placeholder="sk-or-v1-xxxxxxxxxxxxxxxx..."
-                value={tempKey}
-                onChange={e => setTempKey(e.target.value)}
-                className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
-              />
-              <button
-                type="button"
-                onClick={handleManualTest}
-                disabled={isTesting || !tempKey.trim()}
-                className="px-3 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-white disabled:opacity-40 transition flex items-center gap-1.5 shrink-0"
-              >
-                {isTesting ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                ) : (
-                  'Tester la clé'
-                )}
-              </button>
-            </div>
-
-            <p className="text-[11px] text-zinc-500 mt-1 flex items-center gap-1">
-              <Shield className="w-3 h-3 text-emerald-400" /> Clé stockée dans ton navigateur et envoyée au serveur sécurisé pour les requêtes IA.
+        {/* Strict Rate Limit Rule Banner */}
+        <div className="mb-3 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-[11px] text-emerald-200 flex items-start gap-2 shrink-0">
+          <Shield className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="leading-tight">
+            <span className="font-semibold text-white">Règle Stricte 1 Requête Unique & Zéro Boucle de Cascade</span>
+            <p className="text-zinc-300 text-[10px] mt-0.5">
+              Chaque clic déclenche <strong>exactement 1 seule requête</strong>. Si un fournisseur externe sature (429), aucune boucle de requêtes en cascade n'est lancée : le <strong>Moteur Studio</strong> prend instantanément le relais sans spammer d'autres clés.
             </p>
           </div>
+        </div>
 
-          {/* Model & Preset selection */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
-                <Settings2 className="w-3.5 h-3.5 text-indigo-400" /> Modèle ou Preset Cible
-              </label>
-              {selectedModel !== '@preset/push-bot' && (
-                <button
-                  type="button"
-                  onClick={() => onSelectModel('@preset/push-bot')}
-                  className="text-[10px] text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-lg transition"
-                >
-                  ⚡ Activer @preset/push-bot
-                </button>
-              )}
+        {/* Provider Tabs */}
+        <div className="grid grid-cols-4 gap-1.5 p-1 bg-black/40 rounded-xl border border-white/5 mb-3 shrink-0 text-xs">
+          <button
+            type="button"
+            onClick={() => setCurrentTab('groq')}
+            className={`py-2 px-1.5 rounded-lg font-semibold transition flex flex-col items-center gap-0.5 ${
+              currentTab === 'groq'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <div className="flex items-center gap-1">
+              <Zap className="w-3.5 h-3.5" />
+              <span>Groq</span>
             </div>
+            <span className="text-[9px] opacity-80 font-normal">30 req/min Free</span>
+          </button>
 
-            {selectedModel === '@preset/push-bot' && (
-              <div className="mb-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-[11px] text-purple-200 flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-white">Flux redirigé vers @preset/push-bot</span>
-                  <p className="text-zinc-300 text-[10px]">
-                    Les requêtes OpenRouter ciblent désormais directement ton preset dédié avec analyseur résilient multi-format pour éviter les fallbacks.
-                  </p>
-                </div>
-              </div>
-            )}
+          <button
+            type="button"
+            onClick={() => setCurrentTab('mistral')}
+            className={`py-2 px-1.5 rounded-lg font-semibold transition flex flex-col items-center gap-0.5 ${
+              currentTab === 'mistral'
+                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <div className="flex items-center gap-1">
+              <Flame className="w-3.5 h-3.5" />
+              <span>Mistral</span>
+            </div>
+            <span className="text-[9px] opacity-80 font-normal">Top Plume FR</span>
+          </button>
 
-            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-              {OPENROUTER_MODELS.map((m) => {
-                const isSelected = selectedModel === m.id;
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => onSelectModel(m.id)}
-                    className={`cursor-pointer p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
-                      isSelected
-                        ? 'bg-purple-500/15 border-purple-500/50 text-white'
-                        : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] text-zinc-300'
-                    }`}
+          <button
+            type="button"
+            onClick={() => setCurrentTab('openrouter')}
+            className={`py-2 px-1.5 rounded-lg font-semibold transition flex flex-col items-center gap-0.5 ${
+              currentTab === 'openrouter'
+                ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <div className="flex items-center gap-1">
+              <Bot className="w-3.5 h-3.5" />
+              <span>OpenRouter</span>
+            </div>
+            <span className="text-[9px] opacity-80 font-normal">Presets / Multi</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCurrentTab('studio')}
+            className={`py-2 px-1.5 rounded-lg font-semibold transition flex flex-col items-center gap-0.5 ${
+              currentTab === 'studio'
+                ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <div className="flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Studio</span>
+            </div>
+            <span className="text-[9px] opacity-80 font-normal">100% Local</span>
+          </button>
+        </div>
+
+        {/* Scrollable Tab Content */}
+        <form onSubmit={handleSaveAll} className="space-y-3 overflow-y-auto pr-1 flex-1">
+          {/* TAB 1: GROQ */}
+          {currentTab === 'groq' && (
+            <div className="space-y-3 animate-in fade-in">
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">
+                <div className="flex items-center justify-between mb-1 font-semibold text-white">
+                  <span className="flex items-center gap-1.5">
+                    <Zap className="w-4 h-4 text-amber-400" /> Groq Cloud LPU — Recommandé Gratuit
+                  </span>
+                  <a 
+                    href="https://console.groq.com/keys" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-[10px] text-amber-300 hover:underline flex items-center gap-0.5"
                   >
-                    <div>
-                      <div className="text-xs font-semibold flex items-center gap-2">
-                        {m.name}
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
-                          m.id.startsWith('@') ? 'bg-purple-500/20 text-purple-300 font-bold' : 'bg-white/10 text-zinc-300'
-                        }`}>
-                          {m.badge || m.provider}
-                        </span>
-                      </div>
-                    </div>
-                    {isSelected && <Check className="w-4 h-4 text-purple-400 shrink-0" />}
-                  </div>
-                );
-              })}
-            </div>
+                    Obtenir clé gratuite <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <p className="text-zinc-300 text-[11px]">
+                  Processeurs LPU ultra-rapides (500 tokens/sec). Tier gratuit généreux (30 req/min) sans file d'attente saturée.
+                </p>
+              </div>
 
-            {/* Custom preset / model input */}
-            <div className="mt-2 pt-2 border-t border-white/5">
-              <label className="text-[10px] text-zinc-400 block mb-1">
-                Ou saisir un preset personnalisé OpenRouter (@preset/...) :
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="@preset/nom-du-preset"
-                  value={selectedModel}
-                  onChange={e => onSelectModel(e.target.value.trim())}
-                  className="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-purple-300 font-mono focus:outline-none focus:border-purple-500"
-                />
-                {selectedModel !== '@preset/push-bot' && (
+              {/* Diagnostic status */}
+              {groqStatus && (
+                <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between ${
+                  groqStatus.status === 'connected'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                    : 'bg-rose-500/10 border-rose-500/30 text-rose-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {groqStatus.status === 'connected' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                    )}
+                    <span className="text-[11px]">{groqStatus.message}</span>
+                  </div>
+                  {groqStatus.latencyMs && (
+                    <span className="text-[10px] font-mono opacity-75">{groqStatus.latencyMs}ms</span>
+                  )}
+                </div>
+              )}
+
+              {/* API Key */}
+              <div>
+                <label className="text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-amber-400" /> Clé API Groq (gsk_...)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="gsk_..."
+                    value={tempGroqKey}
+                    onChange={e => setTempGroqKey(e.target.value)}
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                  />
                   <button
                     type="button"
-                    onClick={() => onSelectModel('@preset/push-bot')}
-                    className="px-2 py-1 text-[10px] bg-white/5 hover:bg-white/10 text-zinc-300 rounded-lg transition"
+                    onClick={() => {
+                      onSaveGroqApiKey(tempGroqKey.trim());
+                      if (onTestGroq) onTestGroq(tempGroqKey.trim());
+                    }}
+                    disabled={isTestingGroq}
+                    className="px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-200 rounded-xl text-xs font-medium border border-white/10 transition flex items-center gap-1"
                   >
-                    Reset @preset/push-bot
+                    {isTestingGroq ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" /> : 'Tester'}
                   </button>
-                )}
+                </div>
+              </div>
+
+              {/* Models */}
+              <div>
+                <label className="text-xs font-medium text-zinc-300 mb-1.5 block">
+                  Modèle Groq sélectionné :
+                </label>
+                <div className="space-y-1.5">
+                  {GROQ_MODELS.map((m) => {
+                    const isSelected = groqModel === m.id;
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => onSelectGroqModel(m.id)}
+                        className={`cursor-pointer p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-amber-500/15 border-amber-500/50 text-white'
+                            : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] text-zinc-300'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-semibold flex items-center gap-2">
+                            {m.name}
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono bg-amber-500/20 text-amber-300">
+                              {m.badge}
+                            </span>
+                          </div>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Temperature */}
-          <div>
+          {/* TAB 2: MISTRAL AI */}
+          {currentTab === 'mistral' && (
+            <div className="space-y-3 animate-in fade-in">
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
+                <div className="flex items-center justify-between mb-1 font-semibold text-white">
+                  <span className="flex items-center gap-1.5">
+                    <Flame className="w-4 h-4 text-blue-400" /> Mistral AI — Plume Française de Référence
+                  </span>
+                  <a 
+                    href="https://console.mistral.ai/api-keys" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-[10px] text-blue-300 hover:underline flex items-center gap-0.5"
+                  >
+                    Obtenir clé gratuite <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <p className="text-zinc-300 text-[11px]">
+                  Excellente compréhension des nuances, tutoiement naturel, argot et sous-entendus sans traduction littérale.
+                </p>
+              </div>
+
+              {/* Diagnostic status */}
+              {mistralStatus && (
+                <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between ${
+                  mistralStatus.status === 'connected'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                    : 'bg-rose-500/10 border-rose-500/30 text-rose-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {mistralStatus.status === 'connected' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                    )}
+                    <span className="text-[11px]">{mistralStatus.message}</span>
+                  </div>
+                  {mistralStatus.latencyMs && (
+                    <span className="text-[10px] font-mono opacity-75">{mistralStatus.latencyMs}ms</span>
+                  )}
+                </div>
+              )}
+
+              {/* API Key */}
+              <div>
+                <label className="text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-blue-400" /> Clé API Mistral AI
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="Clé API La Plateforme..."
+                    value={tempMistralKey}
+                    onChange={e => setTempMistralKey(e.target.value)}
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSaveMistralApiKey(tempMistralKey.trim());
+                      if (onTestMistral) onTestMistral(tempMistralKey.trim());
+                    }}
+                    disabled={isTestingMistral}
+                    className="px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-200 rounded-xl text-xs font-medium border border-white/10 transition flex items-center gap-1"
+                  >
+                    {isTestingMistral ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-400" /> : 'Tester'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Models */}
+              <div>
+                <label className="text-xs font-medium text-zinc-300 mb-1.5 block">
+                  Modèle Mistral sélectionné :
+                </label>
+                <div className="space-y-1.5">
+                  {MISTRAL_MODELS.map((m) => {
+                    const isSelected = mistralModel === m.id;
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => onSelectMistralModel(m.id)}
+                        className={`cursor-pointer p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-blue-500/15 border-blue-500/50 text-white'
+                            : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] text-zinc-300'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-semibold flex items-center gap-2">
+                            {m.name}
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono bg-blue-500/20 text-blue-300">
+                              {m.badge}
+                            </span>
+                          </div>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-blue-400 shrink-0" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: OPENROUTER */}
+          {currentTab === 'openrouter' && (
+            <div className="space-y-3 animate-in fade-in">
+              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-200">
+                <div className="flex items-center justify-between mb-1 font-semibold text-white">
+                  <span className="flex items-center gap-1.5">
+                    <Bot className="w-4 h-4 text-purple-400" /> OpenRouter — Multi-Modèles & Presets
+                  </span>
+                  <a 
+                    href="https://openrouter.ai/keys" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-[10px] text-purple-300 hover:underline flex items-center gap-0.5"
+                  >
+                    openrouter.ai/keys <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <p className="text-zinc-300 text-[11px]">
+                  Cible ton bot preset <code>@preset/push-bot</code> ou les modèles multi-fournisseurs.
+                </p>
+              </div>
+
+              {/* Status */}
+              {openRouterStatus && (
+                <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between ${
+                  openRouterStatus.status === 'connected'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {openRouterStatus.status === 'connected' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    )}
+                    <span className="text-[11px]">{openRouterStatus.message}</span>
+                  </div>
+                  {openRouterStatus.latencyMs && (
+                    <span className="text-[10px] font-mono opacity-75">{openRouterStatus.latencyMs}ms</span>
+                  )}
+                </div>
+              )}
+
+              {/* API Key */}
+              <div>
+                <label className="text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-purple-400" /> Clé API OpenRouter (sk-or-v1-...)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="sk-or-v1-..."
+                    value={tempOrKey}
+                    onChange={e => setTempOrKey(e.target.value)}
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSaveApiKey(tempOrKey.trim());
+                      if (onTestConnection) onTestConnection(tempOrKey.trim());
+                    }}
+                    disabled={isTesting}
+                    className="px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-200 rounded-xl text-xs font-medium border border-white/10 transition flex items-center gap-1"
+                  >
+                    {isTesting ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-400" /> : 'Tester'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Models */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium text-zinc-300">Modèle ou Preset OpenRouter :</label>
+                  {selectedModel !== '@preset/push-bot' && (
+                    <button
+                      type="button"
+                      onClick={() => onSelectModel('@preset/push-bot')}
+                      className="text-[10px] text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-lg"
+                    >
+                      ⚡ @preset/push-bot
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {OPENROUTER_MODELS.map((m) => {
+                    const isSelected = selectedModel === m.id;
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => onSelectModel(m.id)}
+                        className={`cursor-pointer p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-purple-500/15 border-purple-500/50 text-white'
+                            : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] text-zinc-300'
+                        }`}
+                      >
+                        <div className="text-xs font-semibold flex items-center gap-2">
+                          {m.name}
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                            m.id.startsWith('@') ? 'bg-purple-500/20 text-purple-300 font-bold' : 'bg-white/10 text-zinc-300'
+                          }`}>
+                            {m.badge || m.provider}
+                          </span>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-purple-400 shrink-0" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: STUDIO */}
+          {currentTab === 'studio' && (
+            <div className="space-y-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-200 animate-in fade-in">
+              <div className="flex items-center gap-2 text-white font-bold text-sm">
+                <Sparkles className="w-5 h-5 text-rose-400" /> Moteur Créatif Studio 100% Autonome
+              </div>
+              <p className="text-xs text-zinc-300 leading-relaxed">
+                Ce moteur fonctionne sans aucune clé d'API, sans aucun quota et sans latence réseau. Il applique directement les règles des meilleures agences OnlyFans / MYM :
+              </p>
+              <ul className="text-[11px] space-y-1 text-zinc-300 list-disc list-inside">
+                <li>6 déclencheurs psychologiques distincts par tirage</li>
+                <li>Filtrage temporel automatique selon le fuseau horaire de vos fans</li>
+                <li>Zéro répétition avec détection des anciens messages</li>
+                <li>Aucun risque de saturation 429 ou de limite de débit</li>
+              </ul>
+            </div>
+          )}
+
+          {/* Temperature Setting */}
+          <div className="pt-2 border-t border-white/5">
             <div className="flex items-center justify-between text-xs font-medium text-zinc-300 mb-1">
               <span>Créativité / Température ({temperature})</span>
               <span className="text-[11px] text-zinc-500">
-                {temperature < 0.7 ? 'Précis & Régulier' : 'Ultra spontané & Varié'}
+                {temperature < 0.7 ? 'Précis & Contrôlé' : 'Ultra spontané & Varié'}
               </span>
             </div>
             <input
@@ -360,30 +566,38 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
               step="0.05"
               value={temperature}
               onChange={e => onSetTemperature(parseFloat(e.target.value))}
-              className="w-full accent-purple-500 cursor-pointer"
+              className="w-full accent-rose-500 cursor-pointer"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 transition"
-            >
-              Fermer
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 shadow-md shadow-purple-500/25 transition flex items-center gap-1.5"
-            >
-              {savedSuccess ? (
-                <>
-                  <Check className="w-3.5 h-3.5" /> Enregistré !
-                </>
-              ) : (
-                'Valider & Tester'
-              )}
-            </button>
+          {/* Footer Actions */}
+          <div className="flex items-center justify-between pt-3 border-t border-white/5 shrink-0">
+            <span className="text-[11px] text-zinc-400 flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5 text-emerald-400" />
+              Moteur actif sélectionné : <strong className="text-white capitalize">{currentTab}</strong>
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3.5 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 transition"
+              >
+                Fermer
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-md shadow-rose-500/25 transition flex items-center gap-1.5"
+              >
+                {savedSuccess ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" /> Enregistré !
+                  </>
+                ) : (
+                  'Activer ce moteur'
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>

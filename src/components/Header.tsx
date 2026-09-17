@@ -1,6 +1,6 @@
 import React from 'react';
-import { Bot, Zap, Sparkles, Trophy, Cloud, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
-import { Platform, Language, OpenRouterTestResult } from '../types';
+import { Bot, Zap, Sparkles, Trophy, Cloud, CheckCircle2, AlertTriangle, RefreshCw, Flame, Cpu } from 'lucide-react';
+import { Platform, Language, OpenRouterTestResult, AiProviderId } from '../types';
 
 interface HeaderProps {
   platform: Platform;
@@ -14,6 +14,7 @@ interface HeaderProps {
   onSelectTab: (tab: 'generator' | 'training') => void;
   trainingCount: number;
   isCloudSynced?: boolean;
+  activeProvider?: AiProviderId;
   openRouterStatus?: OpenRouterTestResult | null;
   isTestingOpenRouter?: boolean;
   onTestOpenRouter?: () => void;
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectTab,
   trainingCount,
   isCloudSynced = false,
+  activeProvider = 'groq',
   openRouterStatus,
   isTestingOpenRouter = false,
   onTestOpenRouter
@@ -38,7 +40,9 @@ export const Header: React.FC<HeaderProps> = ({
   const isRateLimited = Boolean(
     openRouterStatus?.message?.includes('20 req/min') ||
     openRouterStatus?.message?.includes('Quota') ||
-    openRouterStatus?.message?.includes('rate limit')
+    openRouterStatus?.message?.includes('rate limit') ||
+    openRouterStatus?.message?.includes('429') ||
+    openRouterStatus?.message?.includes('saturé')
   );
   return (
     <header className="border-b border-white/10 bg-[#0b0b10]/95 backdrop-blur-xl sticky top-0 z-30 px-4 sm:px-8 py-3 transition-all">
@@ -165,24 +169,20 @@ export const Header: React.FC<HeaderProps> = ({
             <span className={`w-1.5 h-1.5 rounded-full ${isCloudSynced ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
           </div>
 
-          {/* OpenRouter Proactive Live Status & Settings Button */}
+          {/* AI Provider Live Status & Settings Button */}
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={onOpenSettings}
-              title={
-                !hasApiKey
-                  ? 'Clique pour configurer ta clé OpenRouter (Claude, GPT, etc.)'
-                  : openRouterStatus?.status === 'connected'
-                  ? `OpenRouter connecté avec succès (${openRouterStatus.creditInfo || 'Actif'}) - Latence: ${openRouterStatus.latencyMs || 0}ms`
-                  : isRateLimited
-                  ? 'Quota gratuit OpenRouter en pause temporaire (20s) - Moteur Créatif Studio actif en relais'
-                  : openRouterStatus?.status === 'error'
-                  ? `Erreur OpenRouter: ${openRouterStatus.message}`
-                  : 'OpenRouter configuré (clique pour tester ou changer)'
-              }
+              title={`Moteur actif: ${activeProvider.toUpperCase()} — Cliquez pour changer ou tester les clés`}
               className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition ${
-                !hasApiKey
+                activeProvider === 'studio'
+                  ? 'bg-rose-500/15 border-rose-500/40 text-rose-200 hover:bg-rose-500/25'
+                  : activeProvider === 'groq'
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-200 hover:bg-amber-500/25 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                  : activeProvider === 'mistral'
+                  ? 'bg-blue-500/15 border-blue-500/40 text-blue-200 hover:bg-blue-500/25 shadow-[0_0_12px_rgba(59,130,246,0.2)]'
+                  : !hasApiKey
                   ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:bg-white/10'
                   : openRouterStatus?.status === 'connected'
                   ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
@@ -193,22 +193,51 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'bg-purple-500/15 border-purple-500/40 text-purple-200 hover:bg-purple-500/25'
               }`}
             >
-              <Bot className={`w-3.5 h-3.5 ${
-                openRouterStatus?.status === 'connected'
-                  ? 'text-emerald-400'
-                  : isRateLimited
-                  ? 'text-amber-400'
-                  : openRouterStatus?.status === 'error'
-                  ? 'text-rose-400'
-                  : 'text-purple-400'
-              }`} />
+              {activeProvider === 'groq' ? (
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+              ) : activeProvider === 'mistral' ? (
+                <Flame className="w-3.5 h-3.5 text-blue-400" />
+              ) : activeProvider === 'studio' ? (
+                <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+              ) : (
+                <Bot className={`w-3.5 h-3.5 ${
+                  openRouterStatus?.status === 'connected'
+                    ? 'text-emerald-400'
+                    : isRateLimited
+                    ? 'text-amber-400'
+                    : openRouterStatus?.status === 'error'
+                    ? 'text-rose-400'
+                    : 'text-purple-400'
+                }`} />
+              )}
 
               {/* Status Indicator Dot & Label */}
               <div className="flex items-center gap-1.5">
                 {isTestingOpenRouter ? (
                   <>
                     <RefreshCw className="w-3 h-3 text-amber-400 animate-spin" />
-                    <span className="font-mono text-[11px] text-amber-300">Test OpenRouter...</span>
+                    <span className="font-mono text-[11px] text-amber-300">Test IA...</span>
+                  </>
+                ) : activeProvider === 'groq' ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="font-mono text-[11px] text-amber-200 font-bold">
+                      Groq LPU (Rapide)
+                    </span>
+                  </>
+                ) : activeProvider === 'mistral' ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                    <span className="font-mono text-[11px] text-blue-200 font-bold">
+                      Mistral (Plume FR)
+                    </span>
+                  </>
+                ) : activeProvider === 'studio' ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-rose-400" />
+                    <span className="font-mono text-[11px] text-rose-200 font-bold">
+                      Moteur Studio (Local)
+                    </span>
                   </>
                 ) : !hasApiKey ? (
                   <>
@@ -221,7 +250,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <>
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
                     <span className="font-mono text-[11px] font-bold text-emerald-300 flex items-center gap-1">
-                      {selectedModel === '@preset/push-bot' ? 'push-bot OK' : 'OpenRouter OK'} {openRouterStatus.latencyMs ? `(${openRouterStatus.latencyMs}ms)` : ''}
+                      {selectedModel === '@preset/push-bot' ? 'push-bot OK' : 'OpenRouter OK'}
                     </span>
                   </>
                 ) : isRateLimited ? (
@@ -258,7 +287,7 @@ export const Header: React.FC<HeaderProps> = ({
                   onTestOpenRouter();
                 }}
                 disabled={isTestingOpenRouter}
-                title="Tester immédiatement la connexion OpenRouter"
+                title="Tester immédiatement la connexion IA"
                 className="px-2 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-[11px] font-medium transition disabled:opacity-50"
               >
                 {isTestingOpenRouter ? (

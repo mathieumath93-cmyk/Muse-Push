@@ -42,6 +42,15 @@ export interface GeneratePushParams {
   previousMessages?: string[];
   trainingExamples?: WinningExample[];
   agencyPlaybookRules?: string;
+  activeProvider?: 'groq' | 'mistral' | 'openrouter' | 'studio';
+  groqConfig?: {
+    apiKey?: string;
+    model?: string;
+  };
+  mistralConfig?: {
+    apiKey?: string;
+    model?: string;
+  };
   openRouterConfig?: {
     apiKey?: string;
     model?: string;
@@ -137,6 +146,76 @@ export async function testOpenRouterConnection(apiKey?: string, model?: string):
       success: false,
       status: 'error',
       message: e.message || 'Impossible de joindre OpenRouter'
+    };
+  }
+}
+
+export async function testGroqConnection(apiKey?: string, model?: string): Promise<OpenRouterTestResult> {
+  const keyToUse = apiKey?.trim() || (typeof window !== 'undefined' ? localStorage.getItem('musepush_groq_key') || '' : '');
+  if (!keyToUse) {
+    return {
+      success: false,
+      status: 'error',
+      message: 'Aucune clé API Groq renseignée (commence par gsk_...).'
+    };
+  }
+
+  try {
+    const res = await fetch('/api/test-groq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: keyToUse, model })
+    });
+    if (res.ok) {
+      return await res.json();
+    } else {
+      const err = await res.json().catch(() => null);
+      return {
+        success: false,
+        status: 'error',
+        message: err?.message || `Erreur Groq HTTP ${res.status}`
+      };
+    }
+  } catch (e: any) {
+    return {
+      success: false,
+      status: 'error',
+      message: e.message || 'Impossible de joindre les serveurs Groq'
+    };
+  }
+}
+
+export async function testMistralConnection(apiKey?: string, model?: string): Promise<OpenRouterTestResult> {
+  const keyToUse = apiKey?.trim() || (typeof window !== 'undefined' ? localStorage.getItem('musepush_mistral_key') || '' : '');
+  if (!keyToUse) {
+    return {
+      success: false,
+      status: 'error',
+      message: 'Aucune clé API Mistral AI renseignée.'
+    };
+  }
+
+  try {
+    const res = await fetch('/api/test-mistral', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: keyToUse, model })
+    });
+    if (res.ok) {
+      return await res.json();
+    } else {
+      const err = await res.json().catch(() => null);
+      return {
+        success: false,
+        status: 'error',
+        message: err?.message || `Erreur Mistral HTTP ${res.status}`
+      };
+    }
+  } catch (e: any) {
+    return {
+      success: false,
+      status: 'error',
+      message: e.message || 'Impossible de joindre les serveurs Mistral AI'
     };
   }
 }
@@ -292,46 +371,36 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
         });
       }
 
-      // If primary model failed (e.g. 429 Rate Limit, 404 Not Found, 503 Overloaded, or Preset error), try automatic failover to alternative free models
+      // If primary model failed with 404/503 (not 429 Rate Limit!), try ONE safe fallback to openrouter/free
       let effectiveModel = selectedLlmModel;
-      if (!orResponse.ok) {
-        console.warn(`Direct call to ${selectedLlmModel} failed (${orResponse.status}), attempting automatic failover to alternative free models...`);
-        const backupCandidates = [
-          'meta-llama/llama-3.3-70b-instruct:free',
-          'mistralai/mistral-small-24b-instruct-2501:free',
-          'openrouter/free',
-          'google/gemma-4-31b-it:free'
-        ].filter(m => m !== selectedLlmModel);
-
-        for (const altModel of backupCandidates) {
-          try {
-            const fallbackPayload: any = {
-              model: altModel,
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-              ],
-              temperature
-            };
-            const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://musepush.app',
-                'X-Title': 'MusePush AI Studio',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(fallbackPayload)
-            });
-            if (fallbackResponse.ok) {
-              orResponse = fallbackResponse;
-              effectiveModel = altModel;
-              console.info(`Direct failover succeeded on ${altModel}!`);
-              break;
-            }
-          } catch (failoverErr) {
-            console.warn(`Failover to ${altModel} failed, trying next...`, failoverErr);
+      if (!orResponse.ok && orResponse.status !== 429 && selectedLlmModel !== 'openrouter/free') {
+        console.warn(`Direct call to ${selectedLlmModel} failed (${orResponse.status}), trying openrouter/free as safe fallback...`);
+        try {
+          const fallbackPayload: any = {
+            model: 'openrouter/free',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            temperature
+          };
+          const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://musepush.app',
+              'X-Title': 'MusePush AI Studio',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(fallbackPayload)
+          });
+          if (fallbackResponse.ok) {
+            orResponse = fallbackResponse;
+            effectiveModel = 'openrouter/free';
+            console.info('Direct failover succeeded on openrouter/free!');
           }
+        } catch (failoverErr) {
+          console.warn('Direct failover skipped:', failoverErr);
         }
       }
 
@@ -446,7 +515,7 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
         if (lowErr.includes('no available model provider') || lowErr.includes('no endpoints found') || lowErr.includes('routing requirements')) {
           openRouterFailureReason = "OpenRouter a bloqué l'accès aux modèles free. Active 'Allow data collection for free models' dans tes paramètres OpenRouter (openrouter.ai/settings/privacy).";
         } else if (orResponse.status === 429 || lowErr.includes('rate limit')) {
-          openRouterFailureReason = "Quota de requêtes gratuites atteint (20 req/min). Réessaye dans 20 secondes ou choisis un autre modèle.";
+          openRouterFailureReason = "Fournisseur gratuit OpenRouter temporairement saturé (HTTP 429). Ce n'est pas toi qui as fait 20 requêtes : le serveur public de ce modèle subit un fort trafic partagé mondial. Le Moteur Studio a pris le relais instantanément.";
         } else if (orResponse.status === 402 || lowErr.includes('credit')) {
           openRouterFailureReason = "OpenRouter exige un solde non-négatif pour les modèles gratuits. Vérifie tes crédits sur openrouter.ai/credits.";
         } else if (orResponse.status === 401) {

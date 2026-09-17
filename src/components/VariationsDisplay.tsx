@@ -49,12 +49,14 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
   const [rateLimitCountdown, setRateLimitCountdown] = useState<number>(20);
   const [isBannerDismissed, setIsBannerDismissed] = useState<boolean>(false);
 
-  // Countdown timer for OpenRouter free tier rate limits (20 req/min)
+  // Countdown timer for OpenRouter free tier rate limits / upstream provider saturation (429)
   React.useEffect(() => {
     setIsBannerDismissed(false);
     const isRateLimit = result?.openRouterStatus?.error?.includes('Quota') ||
       result?.openRouterStatus?.error?.includes('rate limit') ||
-      result?.openRouterStatus?.error?.includes('20 req/min');
+      result?.openRouterStatus?.error?.includes('20 req/min') ||
+      result?.openRouterStatus?.error?.includes('429') ||
+      result?.openRouterStatus?.error?.includes('saturé');
 
     if (isRateLimit && result?.openRouterStatus?.attempted && !result.openRouterStatus.success) {
       setRateLimitCountdown(20);
@@ -165,7 +167,7 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 mt-1 animate-pulse" />
               <div className="space-y-1">
                 <div className="font-semibold text-amber-300 flex items-center gap-2">
-                  <span>OpenRouter : Quota gratuit temporaire (20 req/min)</span>
+                  <span>OpenRouter : Modèle temporairement saturé (HTTP 429)</span>
                   {rateLimitCountdown > 0 ? (
                     <span className="text-[10px] bg-amber-400/20 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-amber-400/30">
                       Dispo dans {rateLimitCountdown}s
@@ -177,7 +179,7 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
                   )}
                 </div>
                 <p className="text-zinc-300 text-[11px] leading-relaxed">
-                  OpenRouter plafonne les modèles gratuits à 20 req/min. Le <strong className="text-white">Moteur Créatif Studio</strong> a immédiatement pris le relais pour générer tes 6 propositions ci-dessous sans blocage.
+                  Le fournisseur public de ce modèle gratuit est surchargé par le trafic mondial (HTTP 429). Le <strong className="text-white">Moteur Créatif Studio</strong> a immédiatement pris le relais pour générer tes 6 propositions sans aucune attente.
                 </p>
               </div>
             </div>

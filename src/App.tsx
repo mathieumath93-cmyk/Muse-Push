@@ -7,7 +7,7 @@ import { OpenRouterModal } from './components/OpenRouterModal';
 import { TrainingStudio } from './components/TrainingStudio';
 import { AddModelModal } from './components/AddModelModal';
 import { INITIAL_MODELS, DEFAULT_WINNING_EXAMPLES } from './data';
-import { executePushGeneration, testOpenRouterConnection } from './services/aiGenerator';
+import { executePushGeneration, testOpenRouterConnection, testGroqConnection, testMistralConnection } from './services/aiGenerator';
 import { 
   subscribeModels, 
   saveModelToCloud, 
@@ -26,7 +26,8 @@ import {
   PushRequestConfig, 
   GenerationResult,
   WinningExample,
-  OpenRouterTestResult
+  OpenRouterTestResult,
+  AiProviderId
 } from './types';
 import { Sparkles, RefreshCw, Trophy, Zap, AlertCircle } from 'lucide-react';
 
@@ -50,6 +51,90 @@ export default function App() {
   const [platform, setPlatform] = useState<Platform>('onlyfans');
   const [language, setLanguage] = useState<Language>('fr');
   const [selectedMood, setSelectedMood] = useState<MoodCategory>('hot');
+
+  // Active Provider selection: 'groq' | 'mistral' | 'openrouter' | 'studio'
+  const [activeProvider, setActiveProvider] = useState<AiProviderId>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('musepush_active_provider') : null;
+    return (saved as AiProviderId) || 'groq';
+  });
+  const handleSelectProvider = (prov: AiProviderId) => {
+    setActiveProvider(prov);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('musepush_active_provider', prov);
+    }
+  };
+
+  // Groq settings
+  const [groqApiKey, setGroqApiKey] = useState<string>(() => {
+    return typeof window !== 'undefined' ? localStorage.getItem('musepush_groq_key') || '' : '';
+  });
+  const [groqModel, setGroqModel] = useState<string>(() => {
+    return typeof window !== 'undefined' ? localStorage.getItem('musepush_groq_model') || 'llama-3.3-70b-versatile' : 'llama-3.3-70b-versatile';
+  });
+  const [groqStatus, setGroqStatus] = useState<OpenRouterTestResult | null>(null);
+  const [isTestingGroq, setIsTestingGroq] = useState<boolean>(false);
+
+  const handleSaveGroqApiKey = (key: string) => {
+    setGroqApiKey(key);
+    if (typeof window !== 'undefined') localStorage.setItem('musepush_groq_key', key);
+    if (key.trim()) handleTestGroq(key);
+  };
+  const handleSelectGroqModel = (model: string) => {
+    setGroqModel(model);
+    if (typeof window !== 'undefined') localStorage.setItem('musepush_groq_model', model);
+  };
+  const handleTestGroq = async (keyToTest?: string) => {
+    const key = keyToTest !== undefined ? keyToTest : groqApiKey;
+    if (!key.trim()) {
+      setGroqStatus({ success: false, status: 'error', message: 'Aucune clé Groq renseignée.' });
+      return;
+    }
+    setIsTestingGroq(true);
+    try {
+      const res = await testGroqConnection(key, groqModel);
+      setGroqStatus(res);
+    } catch (e: any) {
+      setGroqStatus({ success: false, status: 'error', message: e?.message || 'Erreur de test Groq.' });
+    } finally {
+      setIsTestingGroq(false);
+    }
+  };
+
+  // Mistral settings
+  const [mistralApiKey, setMistralApiKey] = useState<string>(() => {
+    return typeof window !== 'undefined' ? localStorage.getItem('musepush_mistral_key') || '' : '';
+  });
+  const [mistralModel, setMistralModel] = useState<string>(() => {
+    return typeof window !== 'undefined' ? localStorage.getItem('musepush_mistral_model') || 'mistral-small-latest' : 'mistral-small-latest';
+  });
+  const [mistralStatus, setMistralStatus] = useState<OpenRouterTestResult | null>(null);
+  const [isTestingMistral, setIsTestingMistral] = useState<boolean>(false);
+
+  const handleSaveMistralApiKey = (key: string) => {
+    setMistralApiKey(key);
+    if (typeof window !== 'undefined') localStorage.setItem('musepush_mistral_key', key);
+    if (key.trim()) handleTestMistral(key);
+  };
+  const handleSelectMistralModel = (model: string) => {
+    setMistralModel(model);
+    if (typeof window !== 'undefined') localStorage.setItem('musepush_mistral_model', model);
+  };
+  const handleTestMistral = async (keyToTest?: string) => {
+    const key = keyToTest !== undefined ? keyToTest : mistralApiKey;
+    if (!key.trim()) {
+      setMistralStatus({ success: false, status: 'error', message: 'Aucune clé Mistral renseignée.' });
+      return;
+    }
+    setIsTestingMistral(true);
+    try {
+      const res = await testMistralConnection(key, mistralModel);
+      setMistralStatus(res);
+    } catch (e: any) {
+      setMistralStatus({ success: false, status: 'error', message: e?.message || 'Erreur de test Mistral.' });
+    } finally {
+      setIsTestingMistral(false);
+    }
+  };
 
   // OpenRouter & LLM settings
   const [openRouterApiKey, setOpenRouterApiKey] = useState<string>(() => {
@@ -101,8 +186,14 @@ export default function App() {
     }
   };
 
-  // Check OpenRouter status on load if key is saved
+  // Check providers on load if key exists
   useEffect(() => {
+    if (groqApiKey && groqApiKey.trim().length > 5) {
+      handleTestGroq(groqApiKey);
+    }
+    if (mistralApiKey && mistralApiKey.trim().length > 5) {
+      handleTestMistral(mistralApiKey);
+    }
     if (openRouterApiKey && openRouterApiKey.trim().length > 5) {
       handleTestOpenRouter(openRouterApiKey);
     }
@@ -340,6 +431,9 @@ export default function App() {
   };
 
   const handleGeneratePush = async () => {
+    // Strict lock: only 1 request at a time to prevent any quota spam
+    if (isGenerating) return;
+
     setIsGenerating(true);
     try {
       // Filter relevant training examples strictly by language to never contaminate US generation with French text
@@ -385,6 +479,15 @@ export default function App() {
         previousMessages: previousMessagesToAvoid,
         trainingExamples: relevantTraining,
         agencyPlaybookRules: effectivePlaybookRules,
+        activeProvider,
+        groqConfig: {
+          apiKey: groqApiKey,
+          model: groqModel
+        },
+        mistralConfig: {
+          apiKey: mistralApiKey,
+          model: mistralModel
+        },
         openRouterConfig: {
           apiKey: openRouterApiKey,
           model: selectedLlmModel,
@@ -398,23 +501,33 @@ export default function App() {
           const freshTexts = result.variations.map(v => v.message).filter(Boolean);
           setGeneratedMessagesHistory(prev => Array.from(new Set([...prev, ...freshTexts])).slice(-30));
         }
-        if (result.openRouterStatus) {
-          const errStr = result.openRouterStatus.error || '';
-          const isRateLimit = errStr.includes('20 req/min') || errStr.includes('Quota') || errStr.includes('rate limit');
 
-          setOpenRouterStatus({
-            success: result.openRouterStatus.success,
-            status: result.openRouterStatus.success
+        const pStatus = (result as any).providerStatus || result.openRouterStatus;
+        if (pStatus) {
+          const errStr = pStatus.error || '';
+          const isRateLimit = errStr.includes('20 req/min') || errStr.includes('Quota') || errStr.includes('rate limit') || errStr.includes('429') || errStr.includes('saturé');
+
+          const formattedStatus: OpenRouterTestResult = {
+            success: pStatus.success,
+            status: pStatus.success
               ? 'connected'
-              : (isRateLimit ? 'warning' : (openRouterApiKey ? 'error' : 'warning')),
-            message: result.openRouterStatus.success 
-              ? `Opérationnel via ${result.modelUsed}`
+              : (isRateLimit ? 'warning' : 'error'),
+            message: pStatus.success 
+              ? `Généré avec succès via ${result.modelUsed}`
               : (isRateLimit
-                  ? 'Quota gratuit OpenRouter temporisé (20 req/min) — Moteur Studio actif'
-                  : (result.openRouterStatus.error || 'Erreur API OpenRouter')),
-            latencyMs: result.openRouterStatus.latencyMs,
-            creditInfo: result.openRouterStatus.creditInfo
-          });
+                  ? 'Modèle saturé (429) — Moteur Studio actif en relais instantané'
+                  : (pStatus.error || 'Erreur API externe')),
+            latencyMs: pStatus.latencyMs,
+            creditInfo: pStatus.creditInfo
+          };
+
+          if (activeProvider === 'groq') {
+            setGroqStatus(formattedStatus);
+          } else if (activeProvider === 'mistral') {
+            setMistralStatus(formattedStatus);
+          } else {
+            setOpenRouterStatus(formattedStatus);
+          }
         }
       } else {
         alert('Erreur lors de la génération du push.');
@@ -436,15 +549,46 @@ export default function App() {
         onSelectPlatform={setPlatform}
         onSelectLanguage={handleSelectLanguage}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        hasApiKey={Boolean(openRouterApiKey)}
-        selectedModel={selectedLlmModel}
+        hasApiKey={
+          activeProvider === 'studio'
+            ? true
+            : activeProvider === 'groq'
+            ? Boolean(groqApiKey)
+            : activeProvider === 'mistral'
+            ? Boolean(mistralApiKey)
+            : Boolean(openRouterApiKey)
+        }
+        selectedModel={
+          activeProvider === 'groq'
+            ? groqModel
+            : activeProvider === 'mistral'
+            ? mistralModel
+            : selectedLlmModel
+        }
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         trainingCount={trainingExamples.length}
         isCloudSynced={isCloudSynced}
-        openRouterStatus={openRouterStatus}
-        isTestingOpenRouter={isTestingOpenRouter}
-        onTestOpenRouter={() => handleTestOpenRouter()}
+        activeProvider={activeProvider}
+        openRouterStatus={
+          activeProvider === 'groq'
+            ? groqStatus
+            : activeProvider === 'mistral'
+            ? mistralStatus
+            : openRouterStatus
+        }
+        isTestingOpenRouter={
+          activeProvider === 'groq'
+            ? isTestingGroq
+            : activeProvider === 'mistral'
+            ? isTestingMistral
+            : isTestingOpenRouter
+        }
+        onTestOpenRouter={() => {
+          if (activeProvider === 'groq') handleTestGroq();
+          else if (activeProvider === 'mistral') handleTestMistral();
+          else if (activeProvider === 'openrouter') handleTestOpenRouter();
+        }}
       />
 
       {/* Main Content Workspace */}
@@ -565,10 +709,26 @@ export default function App() {
         initialModel={editingModel}
       />
 
-      {/* OpenRouter Config Modal */}
+      {/* Multi-Provider Hub Config Modal */}
       <OpenRouterModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        activeProvider={activeProvider}
+        onSelectProvider={handleSelectProvider}
+        groqApiKey={groqApiKey}
+        onSaveGroqApiKey={handleSaveGroqApiKey}
+        groqModel={groqModel}
+        onSelectGroqModel={handleSelectGroqModel}
+        groqStatus={groqStatus}
+        onTestGroq={handleTestGroq}
+        isTestingGroq={isTestingGroq}
+        mistralApiKey={mistralApiKey}
+        onSaveMistralApiKey={handleSaveMistralApiKey}
+        mistralModel={mistralModel}
+        onSelectMistralModel={handleSelectMistralModel}
+        mistralStatus={mistralStatus}
+        onTestMistral={handleTestMistral}
+        isTestingMistral={isTestingMistral}
         apiKey={openRouterApiKey}
         onSaveApiKey={handleSaveApiKey}
         selectedModel={selectedLlmModel}

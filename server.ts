@@ -103,6 +103,126 @@ app.post('/api/test-openrouter', async (req, res) => {
   }
 });
 
+// Test Groq Cloud API Key endpoint
+app.post('/api/test-groq', async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const { apiKey, model = 'llama-3.3-70b-versatile' } = req.body;
+    const keyToUse = (apiKey || process.env.GROQ_API_KEY || '').trim();
+
+    if (!keyToUse) {
+      return res.status(400).json({
+        success: false,
+        status: 'error',
+        message: 'Aucune clé API Groq renseignée (commence par gsk_...).'
+      });
+    }
+
+    const response = await fetch('https://api.groq.com/openai/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${keyToUse}`
+      }
+    });
+
+    const latencyMs = Date.now() - startTime;
+
+    if (response.ok) {
+      return res.json({
+        success: true,
+        status: 'connected',
+        message: `Connexion Groq Cloud validée avec succès ! Puces LPU ultra-rapides prêtes.`,
+        model: model || 'llama-3.3-70b-versatile',
+        creditInfo: 'Tier Gratuit Actif (30 req/min)',
+        latencyMs
+      });
+    } else {
+      const errText = await response.text();
+      let msg = `Erreur Groq (${response.status})`;
+      if (response.status === 401) {
+        msg = 'Clé API Groq invalide (HTTP 401). Vérifie ta clé sur console.groq.com/keys.';
+      } else if (response.status === 429) {
+        msg = 'Limite de requêtes Groq atteinte (HTTP 429).';
+      } else {
+        msg = `Groq a répondu : ${errText.slice(0, 150)}`;
+      }
+      return res.status(response.status).json({
+        success: false,
+        status: 'error',
+        message: msg,
+        latencyMs
+      });
+    }
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      status: 'error',
+      message: err.message || 'Impossible de joindre les serveurs Groq.',
+      latencyMs: Date.now() - startTime
+    });
+  }
+});
+
+// Test Mistral AI API Key endpoint
+app.post('/api/test-mistral', async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const { apiKey, model = 'mistral-small-latest' } = req.body;
+    const keyToUse = (apiKey || process.env.MISTRAL_API_KEY || '').trim();
+
+    if (!keyToUse) {
+      return res.status(400).json({
+        success: false,
+        status: 'error',
+        message: 'Aucune clé API Mistral AI renseignée.'
+      });
+    }
+
+    const response = await fetch('https://api.mistral.ai/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${keyToUse}`
+      }
+    });
+
+    const latencyMs = Date.now() - startTime;
+
+    if (response.ok) {
+      return res.json({
+        success: true,
+        status: 'connected',
+        message: `Connexion Mistral AI validée avec succès ! Plume française de pointe prête.`,
+        model: model || 'mistral-small-latest',
+        creditInfo: 'Compte La Plateforme Actif',
+        latencyMs
+      });
+    } else {
+      const errText = await response.text();
+      let msg = `Erreur Mistral AI (${response.status})`;
+      if (response.status === 401) {
+        msg = 'Clé API Mistral AI invalide (HTTP 401). Vérifie ta clé sur console.mistral.ai/api-keys.';
+      } else if (response.status === 429) {
+        msg = 'Limite de requêtes Mistral AI atteinte (HTTP 429).';
+      } else {
+        msg = `Mistral AI a répondu : ${errText.slice(0, 150)}`;
+      }
+      return res.status(response.status).json({
+        success: false,
+        status: 'error',
+        message: msg,
+        latencyMs
+      });
+    }
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      status: 'error',
+      message: err.message || 'Impossible de joindre les serveurs Mistral AI.',
+      latencyMs: Date.now() - startTime
+    });
+  }
+});
+
 // Timezone clock endpoint to help with live timezone calculations
 app.get('/api/timezones', (req, res) => {
   const now = new Date();
@@ -179,6 +299,9 @@ app.post('/api/generate-push', async (req, res) => {
       targetAudience = 'all_subs',
       hotLevel = 3,
       timeContext,
+      activeProvider = 'openrouter',
+      groqConfig,
+      mistralConfig,
       openRouterConfig,
       trainingExamples,
       agencyPlaybookRules,
@@ -186,16 +309,14 @@ app.post('/api/generate-push', async (req, res) => {
     } = req.body;
 
     const apiKey = openRouterConfig?.apiKey || process.env.OPENROUTER_API_KEY;
-    let selectedModel = openRouterConfig?.model || '@preset/push-bot';
+    const selectedModel = openRouterConfig?.model || 'openrouter/free';
 
     // Build comprehensive prompts with 6 distinct psychological triggers and strict anti-repetition rules
     const {
       systemPrompt,
       userPrompt,
       resolvedTime,
-      temperature,
-      chosenTriggers,
-      seedNonce
+      temperature
     } = buildPushPrompts({
       modelProfile,
       platform,
@@ -217,63 +338,207 @@ app.post('/api/generate-push', async (req, res) => {
     });
 
     const llmTemperature = temperature;
-    const geminiTemperature = Math.min(1.2, temperature);
 
     let parsedResult: any = null;
-    let source: 'openrouter' | 'fallback_engine' = 'fallback_engine';
-    const openRouterDiagnostic = {
-      attempted: Boolean(apiKey),
+    let source: 'openrouter' | 'groq' | 'mistral' | 'fallback_engine' = 'fallback_engine';
+    let actualModelUsed = 'MusePush High-Conversion Engine';
+
+    // Diagnostic tracking for chosen provider
+    const providerDiagnostic = {
+      provider: activeProvider,
+      attempted: activeProvider !== 'studio',
       success: false,
       error: undefined as string | undefined,
-      model: selectedModel,
+      model: '',
       latencyMs: 0
     };
 
-    // 1. If OpenRouter API key is provided, call OpenRouter (with preset resilience)
-    if (apiKey) {
-      const orStartTime = Date.now();
-      try {
-        const isPreset = selectedModel.startsWith('@');
-        const isFreeTarget = !isPreset && (selectedModel.includes(':free') || selectedModel === 'openrouter/free');
+    // STRICT 1-REQUEST POLICY (ANTI-SPAM & ANTI-CASCADE):
+    // Maximum 1 external API request per generation click.
+    // If rate-limited or error: NEVER loop over other models. Clean, instant fallback to Studio Engine.
 
-        // Valid model IDs only for the models array fallback (no presets in models array)
-        const freeFallbacks = ['openrouter/free', 'google/gemma-4-31b-it:free', 'nvidia/nemotron-3.5-lightning:free'];
-        
-        const reqPayload: any = {
-          model: selectedModel,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: llmTemperature
-        };
+    // 1. GROQ CLOUD (Ultra-Fast LPU Engine)
+    if (activeProvider === 'groq') {
+      const groqKey = (groqConfig?.apiKey || process.env.GROQ_API_KEY || '').trim();
+      const groqModel = groqConfig?.model || 'llama-3.3-70b-versatile';
+      providerDiagnostic.model = groqModel;
 
-        // Only add models array if target is a standard model (OpenRouter does not support @preset in models array)
-        if (isFreeTarget) {
-          reqPayload.models = [selectedModel, ...freeFallbacks.filter(m => m !== selectedModel)];
-        }
-
-        // Don't force response_format on custom presets or free models by default as it can trigger HTTP 400
-        if (!isPreset && !selectedModel.includes(':free')) {
-          reqPayload.response_format = { type: 'json_object' };
-        }
-
-        let response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': process.env.APP_URL || 'https://musepush.app',
-            'X-Title': 'MusePush AI Studio',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(reqPayload)
-        });
-
-        // If 400 Bad Request and response_format was used, retry immediately without it
-        if (response.status === 400 && reqPayload.response_format) {
-          delete reqPayload.response_format;
-          response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      if (!groqKey) {
+        providerDiagnostic.error = 'Aucune clé API Groq renseignée (commence par gsk_...).';
+      } else {
+        const groqStartTime = Date.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        try {
+          const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
+            signal: controller.signal,
+            headers: {
+              'Authorization': `Bearer ${groqKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: groqModel,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+              ],
+              temperature: llmTemperature,
+              response_format: { type: 'json_object' }
+            })
+          });
+          clearTimeout(timeoutId);
+          providerDiagnostic.latencyMs = Date.now() - groqStartTime;
+
+          if (resp.ok) {
+            const data = await resp.json();
+            const content = data.choices?.[0]?.message?.content;
+            if (content) {
+              const parsedVariations = parseOpenRouterPushResponse(content, {
+                isUs: language === 'us',
+                isPaid: pushType === 'paid_ppv',
+                priceVal: priceSuggestion || 15,
+                mood,
+                mediaNotice: mediaContext,
+                previousHistory: previousMessages
+              });
+              if (parsedVariations && parsedVariations.length > 0) {
+                parsedResult = { variations: parsedVariations };
+                source = 'groq';
+                actualModelUsed = data.model || groqModel;
+                providerDiagnostic.success = true;
+              } else {
+                providerDiagnostic.error = 'Réponse Groq reçue non convertible en 6 accroches.';
+              }
+            } else {
+              providerDiagnostic.error = 'Contenu vide renvoyé par Groq.';
+            }
+          } else {
+            const errText = await resp.text();
+            let errMsg = `Groq HTTP ${resp.status}`;
+            if (resp.status === 429) {
+              errMsg = 'Limite Groq atteinte (HTTP 429). Moteur Studio actif.';
+            } else if (resp.status === 401) {
+              errMsg = 'Clé API Groq invalide (HTTP 401).';
+            } else {
+              errMsg = `Groq erreur (${resp.status}): ${errText.slice(0, 140)}`;
+            }
+            providerDiagnostic.error = errMsg;
+          }
+        } catch (groqErr: any) {
+          clearTimeout(timeoutId);
+          providerDiagnostic.latencyMs = Date.now() - groqStartTime;
+          providerDiagnostic.error = groqErr.name === 'AbortError'
+            ? 'Timeout Groq (12s). Relais Studio immédiat.'
+            : (groqErr.message || 'Erreur de connexion Groq');
+        }
+      }
+    }
+
+    // 2. MISTRAL AI (Top French Copywriting)
+    else if (activeProvider === 'mistral') {
+      const mistralKey = (mistralConfig?.apiKey || process.env.MISTRAL_API_KEY || '').trim();
+      const mistralModel = mistralConfig?.model || 'mistral-small-latest';
+      providerDiagnostic.model = mistralModel;
+
+      if (!mistralKey) {
+        providerDiagnostic.error = 'Aucune clé API Mistral AI renseignée.';
+      } else {
+        const mistralStartTime = Date.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        try {
+          const resp = await fetch('https://api.mistral.ai/v1/chat/completions', {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+              'Authorization': `Bearer ${mistralKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: mistralModel,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+              ],
+              temperature: llmTemperature,
+              response_format: { type: 'json_object' }
+            })
+          });
+          clearTimeout(timeoutId);
+          providerDiagnostic.latencyMs = Date.now() - mistralStartTime;
+
+          if (resp.ok) {
+            const data = await resp.json();
+            const content = data.choices?.[0]?.message?.content;
+            if (content) {
+              const parsedVariations = parseOpenRouterPushResponse(content, {
+                isUs: language === 'us',
+                isPaid: pushType === 'paid_ppv',
+                priceVal: priceSuggestion || 15,
+                mood,
+                mediaNotice: mediaContext,
+                previousHistory: previousMessages
+              });
+              if (parsedVariations && parsedVariations.length > 0) {
+                parsedResult = { variations: parsedVariations };
+                source = 'mistral';
+                actualModelUsed = data.model || mistralModel;
+                providerDiagnostic.success = true;
+              } else {
+                providerDiagnostic.error = 'Réponse Mistral reçue non convertible en 6 accroches.';
+              }
+            } else {
+              providerDiagnostic.error = 'Contenu vide renvoyé par Mistral.';
+            }
+          } else {
+            const errText = await resp.text();
+            let errMsg = `Mistral HTTP ${resp.status}`;
+            if (resp.status === 429) {
+              errMsg = 'Limite Mistral atteinte (HTTP 429). Moteur Studio actif.';
+            } else if (resp.status === 401) {
+              errMsg = 'Clé API Mistral invalide (HTTP 401).';
+            } else {
+              errMsg = `Mistral erreur (${resp.status}): ${errText.slice(0, 140)}`;
+            }
+            providerDiagnostic.error = errMsg;
+          }
+        } catch (mistralErr: any) {
+          clearTimeout(timeoutId);
+          providerDiagnostic.latencyMs = Date.now() - mistralStartTime;
+          providerDiagnostic.error = mistralErr.name === 'AbortError'
+            ? 'Timeout Mistral (12s). Relais Studio immédiat.'
+            : (mistralErr.message || 'Erreur de connexion Mistral');
+        }
+      }
+    }
+
+    // 3. OPENROUTER (Single Request - No Cascading Loops)
+    else if (activeProvider === 'openrouter') {
+      providerDiagnostic.model = selectedModel;
+
+      if (apiKey) {
+        const orStartTime = Date.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+        try {
+          const isPreset = selectedModel.startsWith('@');
+          const reqPayload: any = {
+            model: selectedModel,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            temperature: llmTemperature
+          };
+
+          if (!isPreset && !selectedModel.includes(':free')) {
+            reqPayload.response_format = { type: 'json_object' };
+          }
+
+          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            signal: controller.signal,
             headers: {
               'Authorization': `Bearer ${apiKey}`,
               'HTTP-Referer': process.env.APP_URL || 'https://musepush.app',
@@ -282,155 +547,74 @@ app.post('/api/generate-push', async (req, res) => {
             },
             body: JSON.stringify(reqPayload)
           });
-        }
+          clearTimeout(timeoutId);
+          providerDiagnostic.latencyMs = Date.now() - orStartTime;
 
-        // If primary model failed (e.g. 429 Rate Limit, 404 Not Found, 503 Overloaded, or Preset error), try automatic failover to alternative free models
-        if (!response.ok) {
-          console.warn(`Model ${selectedModel} returned status ${response.status}, attempting automatic failover to alternative free models...`);
-          const backupCandidates = [
-            'meta-llama/llama-3.3-70b-instruct:free',
-            'mistralai/mistral-small-24b-instruct-2501:free',
-            'openrouter/free',
-            'google/gemma-4-31b-it:free'
-          ].filter(m => m !== selectedModel);
+          if (response.ok) {
+            const data = await response.json();
+            const content = data.choices?.[0]?.message?.content;
+            actualModelUsed = data.model || selectedModel;
+            providerDiagnostic.model = actualModelUsed;
 
-          for (const altModel of backupCandidates) {
-            try {
-              const fallbackPayload: any = {
-                model: altModel,
-                messages: [
-                  { role: 'system', content: systemPrompt },
-                  { role: 'user', content: userPrompt }
-                ],
-                temperature: llmTemperature
-              };
-              const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${apiKey}`,
-                  'HTTP-Referer': process.env.APP_URL || 'https://musepush.app',
-                  'X-Title': 'MusePush AI Studio',
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(fallbackPayload)
+            if (content) {
+              const parsedVariations = parseOpenRouterPushResponse(content, {
+                isUs: language === 'us',
+                isPaid: pushType === 'paid_ppv',
+                priceVal: priceSuggestion || 15,
+                mood,
+                mediaNotice: mediaContext,
+                previousHistory: previousMessages
               });
-              if (fallbackResponse.ok) {
-                response = fallbackResponse;
-                selectedModel = altModel;
-                console.info(`Automatic failover succeeded on ${altModel}!`);
-                break;
+
+              if (parsedVariations && parsedVariations.length > 0) {
+                parsedResult = {
+                  variations: parsedVariations
+                };
+                source = 'openrouter';
+                providerDiagnostic.success = true;
+              } else {
+                providerDiagnostic.error = 'Réponse reçue non convertible en 6 accroches distinctes';
               }
-            } catch (failoverErr) {
-              console.warn(`Failover to ${altModel} failed, trying next...`, failoverErr);
-            }
-          }
-        }
-
-        openRouterDiagnostic.latencyMs = Date.now() - orStartTime;
-
-        if (response.ok) {
-          const data = await response.json();
-          const content = data.choices?.[0]?.message?.content;
-          const actualModel = data.model || selectedModel;
-          openRouterDiagnostic.model = actualModel;
-
-          if (content) {
-            const parsedVariations = parseOpenRouterPushResponse(content, {
-              isUs: language === 'us',
-              isPaid: pushType === 'paid_ppv',
-              priceVal: priceSuggestion || 15,
-              mood,
-              mediaNotice: mediaContext,
-              previousHistory: previousMessages
-            });
-
-            if (parsedVariations && parsedVariations.length > 0) {
-              parsedResult = {
-                variations: parsedVariations
-              };
-              source = 'openrouter';
-              openRouterDiagnostic.success = true;
             } else {
-              console.warn('Could not parse OpenRouter response content:', content.slice(0, 200));
-              openRouterDiagnostic.error = 'Réponse reçue non convertible en 6 accroches distinctes';
+              providerDiagnostic.error = 'Message vide retourné par OpenRouter';
             }
           } else {
-            openRouterDiagnostic.error = 'Message vide retourné par OpenRouter';
-          }
-        } else {
-          const errText = await response.text();
-          console.warn('OpenRouter API returned error:', response.status, errText);
+            const errText = await response.text();
+            let errorDetail = '';
+            try {
+              const errObj = JSON.parse(errText);
+              errorDetail = errObj.error?.message || errObj.message || errText;
+            } catch {
+              errorDetail = errText;
+            }
 
-          let errorDetail = '';
-          try {
-            const errObj = JSON.parse(errText);
-            errorDetail = errObj.error?.message || errObj.message || errText;
-          } catch {
-            errorDetail = errText;
-          }
+            let friendlyError = `HTTP ${response.status}: ${errorDetail.slice(0, 160)}`;
+            const lowErr = errorDetail.toLowerCase();
+            if (lowErr.includes('no available model provider') || lowErr.includes('no endpoints found') || lowErr.includes('routing requirements')) {
+              friendlyError = "OpenRouter a bloqué l'accès aux modèles free. Active 'Allow data collection for free models' dans tes paramètres OpenRouter (openrouter.ai/settings/privacy).";
+            } else if (response.status === 429 || lowErr.includes('rate limit')) {
+              friendlyError = "Fournisseur gratuit OpenRouter temporairement saturé (HTTP 429 : trafic partagé mondial). Relais Studio immédiat.";
+            } else if (response.status === 402 || lowErr.includes('credit')) {
+              friendlyError = "OpenRouter exige un solde non-négatif pour router les modèles gratuits. Vérifie ton solde sur openrouter.ai/credits.";
+            } else if (response.status === 401) {
+              friendlyError = "Clé API OpenRouter invalide ou révoquée (sk-or-v1-...). Vérifie ta clé sur openrouter.ai/keys.";
+            } else if (lowErr.includes('preset') || response.status === 404) {
+              friendlyError = `Le preset '${selectedModel}' n'a pas pu être chargé par OpenRouter. Vérifie le nom sur openrouter.ai/presets ou choisis 'openrouter/free'.`;
+            }
 
-          // Translate specific OpenRouter free model failure reasons into explicit guidance
-          let friendlyError = `HTTP ${response.status}: ${errorDetail.slice(0, 160)}`;
-          const lowErr = errorDetail.toLowerCase();
-          if (lowErr.includes('no available model provider') || lowErr.includes('no endpoints found') || lowErr.includes('routing requirements')) {
-            friendlyError = "OpenRouter a bloqué l'accès aux modèles free. Active 'Allow data collection for free models' dans tes paramètres OpenRouter (openrouter.ai/settings/privacy) pour autoriser les modèles gratuits.";
-          } else if (response.status === 429 || lowErr.includes('rate limit')) {
-            friendlyError = "Limite de requêtes atteinte sur les modèles gratuits d'OpenRouter (20 req/min). Réessaye dans 20 secondes ou sélectionne un autre modèle free.";
-          } else if (response.status === 402 || lowErr.includes('credit')) {
-            friendlyError = "OpenRouter exige un solde non-négatif pour router les modèles gratuits. Vérifie ton solde sur openrouter.ai/credits.";
-          } else if (response.status === 401) {
-            friendlyError = "Clé API OpenRouter invalide ou révoquée (sk-or-v1-...). Vérifie ta clé sur openrouter.ai/keys.";
-          } else if (lowErr.includes('preset') || response.status === 404) {
-            friendlyError = `Le preset '${selectedModel}' n'a pas pu être chargé par OpenRouter. Vérifie le nom sur openrouter.ai/presets ou choisis 'openrouter/free'.`;
+            providerDiagnostic.error = friendlyError;
           }
-
-          openRouterDiagnostic.error = friendlyError;
+        } catch (orErr: any) {
+          clearTimeout(timeoutId);
+          providerDiagnostic.latencyMs = Date.now() - orStartTime;
+          providerDiagnostic.error = orErr.name === 'AbortError'
+            ? 'Timeout OpenRouter (12s). Relais Studio immédiat.'
+            : (orErr.message || 'Erreur réseau vers OpenRouter');
         }
-      } catch (orErr: any) {
-        openRouterDiagnostic.latencyMs = Date.now() - orStartTime;
-        openRouterDiagnostic.error = orErr.message || 'Erreur réseau vers OpenRouter';
-        console.warn('OpenRouter connection error:', orErr);
       }
     }
 
-    // 2. If OpenRouter wasn't used or failed, try Gemini if key exists
-    if (!parsedResult && process.env.GEMINI_API_KEY) {
-      try {
-        const ai = getAiClient();
-        const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-        const isUs = language === 'us';
-        const noveltyNotice = isUs
-          ? (varietyLevel === 'high'
-            ? `[TOTAL CREATIVE FREEDOM - MAXIMUM VARIETY & NOVELTY ACTIVE - TEMPERATURE ${geminiTemperature}]\nStrictly write 100% in natural American English (US). Generate 6 radically dissimilar push propositions.`
-            : `[VARIETY REQUIREMENT: ${varietyLevel.toUpperCase()} - 100% AMERICAN ENGLISH - 6 DISSIMILAR PROPOSITIONS]`)
-          : (varietyLevel === 'high'
-            ? `[LIBERTÉ CRÉATIVE TOTALE - DIVERSITÉ & NOUVEAUTÉ MAXIMALE ACTIVE - TEMPÉRATURE ${geminiTemperature}]\nInterdiction formelle de répéter les formulations ou de suivre un schéma d'angles fixe. Donne 6 propositions d'accroches radicalement différentes les unes des autres.`
-            : `[CONSIGNE VARIÉTÉ : ${varietyLevel.toUpperCase()} - LIBERTÉ CRÉATIVE TOTALE - 6 PROPOSITIONS DISSIMILAIRES]`);
-
-        const promptConsigne = isUs
-          ? `MANDATE: Write all 6 propositions 100% in natural American English (US). ZERO French words allowed.`
-          : `CONSIGNE : Génère 6 propositions totalement libres et imprévisibles, sans angle précis imposé, afin qu'aucune ne se ressemble.`;
-
-        const geminiRes = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
-          contents: `${systemPrompt}\n\n${userPrompt}\n\n[SEED FRAÎCHEUR #${nonce}]\n${noveltyNotice}\n${promptConsigne}`,
-          config: {
-            responseMimeType: 'application/json',
-            temperature: geminiTemperature
-          }
-        });
-
-        if (geminiRes.text) {
-          const cleaned = geminiRes.text.replace(/```json/gi, '').replace(/```/g, '').trim();
-          parsedResult = JSON.parse(cleaned);
-          source = 'openrouter'; // Valid server-side AI model
-        }
-      } catch (gemErr) {
-        console.warn('Gemini fallback error:', gemErr);
-      }
-    }
-
-    // 3. Dynamic Creative Generator if no API key is set yet or for instant fresh preview
+    // 4. INSTANT FALLBACK TO STUDIO ENGINE (If no external AI used or if external AI failed)
     if (!parsedResult) {
       parsedResult = generateDynamicPushVariations({
         modelProfile,
@@ -455,6 +639,7 @@ app.post('/api/generate-push', async (req, res) => {
         }
       });
       source = 'fallback_engine';
+      actualModelUsed = 'MusePush High-Conversion Engine';
     }
 
     // Double safety sanitizer: purge nocturnal or morning wake-up hallucinations according to real period
@@ -516,9 +701,16 @@ app.post('/api/generate-push', async (req, res) => {
 
     res.json({
       success: true,
-      modelUsed: apiKey ? selectedModel : (source === 'openrouter' ? 'Intelligence Artificielle' : 'MusePush High-Conversion Engine'),
+      modelUsed: actualModelUsed,
       source,
-      openRouterStatus: openRouterDiagnostic,
+      providerStatus: providerDiagnostic,
+      openRouterStatus: {
+        attempted: providerDiagnostic.attempted,
+        success: providerDiagnostic.success,
+        error: providerDiagnostic.error,
+        model: providerDiagnostic.model,
+        latencyMs: providerDiagnostic.latencyMs
+      },
       activeParametersSummary: parsedResult.activeParametersSummary || {
         mood,
         varietyLevel,
