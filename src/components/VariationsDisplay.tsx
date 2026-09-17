@@ -121,14 +121,28 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
 
       {/* Proactive OpenRouter Execution Status Banner */}
       {result.openRouterStatus?.attempted && !result.openRouterStatus.success && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs text-amber-200">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-            <span>
-              <strong>Note OpenRouter :</strong> {result.openRouterStatus.error || 'Connexion non établie'}. Bascule automatique réussie sur le Moteur Créatif Studio.
-            </span>
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-amber-200">
+          <div className="flex items-start sm:items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 mt-1 sm:mt-0 animate-ping" />
+            <div className="space-y-1">
+              <span>
+                <strong>Note OpenRouter :</strong> {result.openRouterStatus.error || 'Connexion non établie'}. Bascule automatique sur le Moteur Créatif Studio.
+              </span>
+              {(result.openRouterStatus.error?.includes('privacy') || result.openRouterStatus.error?.includes('gratuit') || result.openRouterStatus.error?.includes('free')) && (
+                <div className="pt-0.5">
+                  <a
+                    href="https://openrouter.ai/settings/privacy"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-300 hover:text-amber-100 underline"
+                  >
+                    👉 Ouvrir mes paramètres OpenRouter pour activer 'Allow data collection for free models' ↗
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
-          <span className="text-[10px] font-mono text-amber-300 bg-black/40 px-2 py-0.5 rounded">
+          <span className="text-[10px] font-mono text-amber-300 bg-black/40 px-2 py-0.5 rounded shrink-0 self-start sm:self-auto">
             Fallback Actif
           </span>
         </div>

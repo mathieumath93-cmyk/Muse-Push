@@ -64,11 +64,59 @@ app.post('/api/test-openrouter', async (req, res) => {
       const data = await response.json();
       const usage = data.data?.usage != null ? `${Number(data.data.usage).toFixed(2)}$` : 'Actif';
       const limit = data.data?.limit != null ? `${Number(data.data.limit).toFixed(2)}$` : 'Illimité';
+
+      // 2. Perform a live micro-check on the selected model/preset to diagnose Free access
+      let modelStatusNote = '';
+      let needsPrivacyAction = false;
+      let actualWorkingModel = model;
+
+      try {
+        const testPayload: any = {
+          model: model || '@preset/push-bot',
+          messages: [{ role: 'user', content: 'test' }],
+          max_tokens: 1
+        };
+
+        const testModelRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${keyToUse}`,
+            'HTTP-Referer': process.env.APP_URL || 'https://musepush.app',
+            'X-Title': 'MusePush AI Studio',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(testPayload)
+        });
+
+        if (testModelRes.ok) {
+          modelStatusNote = `Flux testé avec succès sur ${model} !`;
+        } else {
+          const testErrText = await testModelRes.text();
+          const lowErr = testErrText.toLowerCase();
+
+          if (lowErr.includes('no available model provider') || lowErr.includes('routing requirements') || lowErr.includes('no endpoints found')) {
+            needsPrivacyAction = true;
+            modelStatusNote = "Attention : OpenRouter bloque les modèles gratuits sur ton compte. Active l'option 'Allow data collection for free models' sur openrouter.ai/settings/privacy pour débloquer.";
+          } else if (lowErr.includes('preset') || testModelRes.status === 404) {
+            modelStatusNote = `Le preset '${model}' n'est pas encore accessible sur ton compte. Tu peux utiliser 'openrouter/free' en attendant.`;
+          } else if (testModelRes.status === 429) {
+            modelStatusNote = "Limite temporaire OpenRouter (20 req/min). Le service répond bien.";
+          } else {
+            modelStatusNote = `OpenRouter (${testModelRes.status}): ${testErrText.slice(0, 100)}`;
+          }
+        }
+      } catch (microErr: any) {
+        console.warn('Micro-test skipped:', microErr?.message);
+      }
+
       return res.json({
         success: true,
-        status: 'connected',
-        message: 'Connexion OpenRouter réussie ! Clé valide et active.',
-        model,
+        status: needsPrivacyAction ? 'warning' : 'connected',
+        message: needsPrivacyAction 
+          ? "Clé valide, mais OpenRouter bloque les modèles gratuits : Active 'Allow data collection for free models' dans tes paramètres de confidentialité OpenRouter (openrouter.ai/settings/privacy)."
+          : `Connexion OpenRouter validée ! ${modelStatusNote}`,
+        model: actualWorkingModel,
+        needsPrivacyAction,
         creditInfo: `Usage : ${usage} / Limite : ${limit}`,
         latencyMs
       });
@@ -184,7 +232,7 @@ app.post('/api/generate-push', async (req, res) => {
     } = req.body;
 
     const apiKey = openRouterConfig?.apiKey || process.env.OPENROUTER_API_KEY;
-    const selectedModel = openRouterConfig?.model || '@preset/push-bot';
+    let selectedModel = openRouterConfig?.model || '@preset/push-bot';
 
     // Build comprehensive prompts with 6 distinct psychological triggers and strict anti-repetition rules
     const {
@@ -232,6 +280,11 @@ app.post('/api/generate-push', async (req, res) => {
       const orStartTime = Date.now();
       try {
         const isPreset = selectedModel.startsWith('@');
+        const isFreeTarget = !isPreset && (selectedModel.includes(':free') || selectedModel === 'openrouter/free');
+
+        // Valid model IDs only for the models array fallback (no presets in models array)
+        const freeFallbacks = ['openrouter/free', 'google/gemma-4-31b-it:free', 'nvidia/nemotron-3.5-lightning:free'];
+        
         const reqPayload: any = {
           model: selectedModel,
           messages: [
@@ -241,8 +294,13 @@ app.post('/api/generate-push', async (req, res) => {
           temperature: llmTemperature
         };
 
-        // Don't force response_format on custom presets by default as it can trigger HTTP 400
-        if (!isPreset) {
+        // Only add models array if target is a standard model (OpenRouter does not support @preset in models array)
+        if (isFreeTarget) {
+          reqPayload.models = [selectedModel, ...freeFallbacks.filter(m => m !== selectedModel)];
+        }
+
+        // Don't force response_format on custom presets or free models by default as it can trigger HTTP 400
+        if (!isPreset && !selectedModel.includes(':free')) {
           reqPayload.response_format = { type: 'json_object' };
         }
 
@@ -250,7 +308,7 @@ app.post('/api/generate-push', async (req, res) => {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': process.env.APP_URL || 'https://musepush.applet',
+            'HTTP-Referer': process.env.APP_URL || 'https://musepush.app',
             'X-Title': 'MusePush AI Studio',
             'Content-Type': 'application/json'
           },
@@ -264,7 +322,7 @@ app.post('/api/generate-push', async (req, res) => {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${apiKey}`,
-              'HTTP-Referer': process.env.APP_URL || 'https://musepush.applet',
+              'HTTP-Referer': process.env.APP_URL || 'https://musepush.app',
               'X-Title': 'MusePush AI Studio',
               'Content-Type': 'application/json'
             },
@@ -272,11 +330,42 @@ app.post('/api/generate-push', async (req, res) => {
           });
         }
 
+        // If preset failed (e.g. 404 Preset Not Found, or No Provider), try automatic failover to openrouter/free
+        if (!response.ok && isPreset) {
+          console.warn(`Preset ${selectedModel} failed (${response.status}), attempting automatic failover to openrouter/free...`);
+          const fallbackPayload = {
+            model: 'openrouter/free',
+            models: ['openrouter/free', 'google/gemma-4-31b-it:free', 'nvidia/nemotron-3.5-lightning:free'],
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            temperature: llmTemperature
+          };
+          const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'HTTP-Referer': process.env.APP_URL || 'https://musepush.app',
+              'X-Title': 'MusePush AI Studio',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(fallbackPayload)
+          });
+          if (fallbackResponse.ok) {
+            response = fallbackResponse;
+            selectedModel = 'openrouter/free';
+          }
+        }
+
         openRouterDiagnostic.latencyMs = Date.now() - orStartTime;
 
         if (response.ok) {
           const data = await response.json();
           const content = data.choices?.[0]?.message?.content;
+          const actualModel = data.model || selectedModel;
+          openRouterDiagnostic.model = actualModel;
+
           if (content) {
             const parsedVariations = parseOpenRouterPushResponse(content, {
               isUs: language === 'us',
@@ -303,7 +392,31 @@ app.post('/api/generate-push', async (req, res) => {
         } else {
           const errText = await response.text();
           console.warn('OpenRouter API returned error:', response.status, errText);
-          openRouterDiagnostic.error = `HTTP ${response.status}: ${errText.slice(0, 150)}`;
+
+          let errorDetail = '';
+          try {
+            const errObj = JSON.parse(errText);
+            errorDetail = errObj.error?.message || errObj.message || errText;
+          } catch {
+            errorDetail = errText;
+          }
+
+          // Translate specific OpenRouter free model failure reasons into explicit guidance
+          let friendlyError = `HTTP ${response.status}: ${errorDetail.slice(0, 160)}`;
+          const lowErr = errorDetail.toLowerCase();
+          if (lowErr.includes('no available model provider') || lowErr.includes('no endpoints found') || lowErr.includes('routing requirements')) {
+            friendlyError = "OpenRouter a bloqué l'accès aux modèles free. Active 'Allow data collection for free models' dans tes paramètres OpenRouter (openrouter.ai/settings/privacy) pour autoriser les modèles gratuits.";
+          } else if (response.status === 429 || lowErr.includes('rate limit')) {
+            friendlyError = "Limite de requêtes atteinte sur les modèles gratuits d'OpenRouter (20 req/min). Réessaye dans 20 secondes ou sélectionne un autre modèle free.";
+          } else if (response.status === 402 || lowErr.includes('credit')) {
+            friendlyError = "OpenRouter exige un solde non-négatif pour router les modèles gratuits. Vérifie ton solde sur openrouter.ai/credits.";
+          } else if (response.status === 401) {
+            friendlyError = "Clé API OpenRouter invalide ou révoquée (sk-or-v1-...). Vérifie ta clé sur openrouter.ai/keys.";
+          } else if (lowErr.includes('preset') || response.status === 404) {
+            friendlyError = `Le preset '${selectedModel}' n'a pas pu être chargé par OpenRouter. Vérifie le nom sur openrouter.ai/presets ou choisis 'openrouter/free'.`;
+          }
+
+          openRouterDiagnostic.error = friendlyError;
         }
       } catch (orErr: any) {
         openRouterDiagnostic.latencyMs = Date.now() - orStartTime;

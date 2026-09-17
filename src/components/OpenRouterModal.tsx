@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { OPENROUTER_MODELS } from '../data';
-import { Key, Bot, Settings2, Shield, Check, Info, RefreshCw, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Key, Bot, Settings2, Shield, Check, Info, RefreshCw, CheckCircle2, AlertTriangle, ExternalLink, Sparkles } from 'lucide-react';
 import { OpenRouterTestResult } from '../types';
 
 interface OpenRouterModalProps {
@@ -97,6 +97,11 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span className="text-emerald-300 font-bold">OpenRouter opérationnel et connecté</span>
                 </>
+              ) : openRouterStatus?.status === 'warning' ? (
+                <>
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <span className="text-amber-300 font-bold">Action requise sur ton compte OpenRouter</span>
+                </>
               ) : openRouterStatus?.status === 'error' ? (
                 <>
                   <AlertTriangle className="w-4 h-4 text-rose-400" />
@@ -127,19 +132,70 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
             </div>
           )}
 
-          {openRouterStatus?.status === 'error' && (
-            <div className="mt-2 pt-2 border-t border-rose-500/20 text-[11px] text-rose-300/90 space-y-1">
-              <p>💡 Vérifie que tu as des crédits sur ton compte OpenRouter (même 1 ou 2$) ou génère une nouvelle clé sur le dashboard.</p>
+          {(openRouterStatus?.needsPrivacyAction || openRouterStatus?.status === 'warning') && (
+            <div className="mt-2.5 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-[11px] text-amber-200 space-y-2">
+              <div className="font-semibold text-amber-300 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Déblocage obligatoire pour les modèles & presets Free :</span>
+              </div>
+              <p className="text-zinc-300 text-[10px] leading-relaxed">
+                OpenRouter exige d'activer le partage anonyme pour accéder à tous les modèles gratuits (<code className="text-amber-300">:free</code> et presets gratuits). Sans cela, OpenRouter renvoie systématiquement une erreur 404 (No available model provider).
+              </p>
               <a
-                href="https://openrouter.ai/credits"
+                href="https://openrouter.ai/settings/privacy"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-rose-400 hover:underline font-semibold"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold border border-amber-500/30 transition"
               >
-                Vérifier mes crédits OpenRouter <ExternalLink className="w-3 h-3" />
+                Activer "Allow data collection for free models" sur OpenRouter <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
           )}
+
+          {openRouterStatus?.status === 'error' && !openRouterStatus?.needsPrivacyAction && (
+            <div className="mt-2 pt-2 border-t border-rose-500/20 text-[11px] text-rose-300/90 space-y-1">
+              <p>💡 Vérifie que ta clé est bien active ou que l'option de confidentialité OpenRouter est cochée.</p>
+              <div className="flex gap-2 pt-1">
+                <a
+                  href="https://openrouter.ai/settings/privacy"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-amber-300 hover:underline font-semibold text-[10px]"
+                >
+                  Paramètres Privacy Free <ExternalLink className="w-3 h-3" />
+                </a>
+                <span className="text-zinc-600">•</span>
+                <a
+                  href="https://openrouter.ai/credits"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-rose-400 hover:underline font-semibold text-[10px]"
+                >
+                  Vérifier mes crédits <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Free models notice card */}
+        <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 via-purple-500/10 to-indigo-500/10 border border-emerald-500/20 text-[11px] space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Mode 100% Gratuit (Free Tier)
+            </span>
+            <a
+              href="https://openrouter.ai/settings/privacy"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[10px] text-emerald-400 hover:text-emerald-300 underline flex items-center gap-1"
+            >
+              Réglage Privacy ↗
+            </a>
+          </div>
+          <p className="text-zinc-300 text-[10px] leading-relaxed">
+            Pour utiliser gratuitement ton preset ou les modèles Free d'OpenRouter sans payer de crédits, assure-toi d'activer l'option <strong>"Allow data collection for free models"</strong> dans tes paramètres OpenRouter.
+          </p>
         </div>
 
         <form onSubmit={handleSave} className="space-y-4">

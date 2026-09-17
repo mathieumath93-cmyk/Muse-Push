@@ -278,10 +278,12 @@ export const TIME_ZONES = [
 ] as const;
 
 export const OPENROUTER_MODELS = [
-  { id: '@preset/push-bot', name: 'Preset Bot Push (@preset/push-bot)', provider: 'OpenRouter Preset', badge: 'Preset Actif' },
-  { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Ultra Naturel & Nuancé)', provider: 'Anthropic', badge: 'Qualité' },
-  { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B Instruct (Créatif & Non-bridé)', provider: 'Meta', badge: 'Top Roleplay' },
-  { id: 'openai/gpt-4o', name: 'GPT-4o (Rapide & Direct)', provider: 'OpenAI', badge: 'Standard' },
+  { id: '@preset/push-bot', name: 'Preset Bot Push (@preset/push-bot)', provider: 'OpenRouter Preset', badge: 'Ton Preset Free' },
+  { id: 'openrouter/free', name: 'OpenRouter Free (Auto-routeur 100% Gratuit)', provider: 'OpenRouter', badge: '100% Gratuit' },
+  { id: 'google/gemma-4-31b-it:free', name: 'Gemma 4 31B Instruct Free (Google)', provider: 'Google (Gratuit)', badge: '100% Gratuit' },
+  { id: 'nvidia/nemotron-3.5-lightning:free', name: 'Nemotron 3.5 Lightning Free', provider: 'Nvidia (Gratuit)', badge: '100% Gratuit' },
+  { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Ultra Naturel & Nuancé)', provider: 'Anthropic', badge: 'Payant' },
+  { id: 'openai/gpt-4o', name: 'GPT-4o (Rapide & Direct)', provider: 'OpenAI', badge: 'Payant' },
   { id: 'deepseek/deepseek-chat', name: 'DeepSeek Chat V3 (Économique & Fluide)', provider: 'DeepSeek', badge: 'Éco' },
   { id: 'mistralai/mistral-large-2411', name: 'Mistral Large 2 (Excellente plume FR)', provider: 'Mistral', badge: 'Top FR' },
 ];

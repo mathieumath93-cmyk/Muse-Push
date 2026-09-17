@@ -212,6 +212,7 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
   // 2. Second attempt: Direct OpenRouter call if user entered their API key
   const apiKey = openRouterConfig?.apiKey?.trim() || (typeof window !== 'undefined' ? localStorage.getItem('musepush_openrouter_key') || '' : '');
   const selectedLlmModel = openRouterConfig?.model || '@preset/push-bot';
+  let openRouterFailureReason = '';
 
   if (apiKey) {
     try {
@@ -244,6 +245,10 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
 
       const directStartTime = Date.now();
       const isPreset = selectedLlmModel.startsWith('@');
+      const isFreeTarget = !isPreset && (selectedLlmModel.includes(':free') || selectedLlmModel === 'openrouter/free');
+
+      const freeFallbacks = ['openrouter/free', 'google/gemma-4-31b-it:free', 'nvidia/nemotron-3.5-lightning:free'];
+
       const reqPayload: any = {
         model: selectedLlmModel,
         messages: [
@@ -253,7 +258,11 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
         temperature
       };
 
-      if (!isPreset) {
+      if (isFreeTarget) {
+        reqPayload.models = [selectedLlmModel, ...freeFallbacks.filter(m => m !== selectedLlmModel)];
+      }
+
+      if (!isPreset && !selectedLlmModel.includes(':free')) {
         reqPayload.response_format = { type: 'json_object' };
       }
 
@@ -283,11 +292,42 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
         });
       }
 
+      // If preset failed, try automatic failover to openrouter/free
+      let effectiveModel = selectedLlmModel;
+      if (!orResponse.ok && isPreset) {
+        console.warn(`Direct call to preset ${selectedLlmModel} failed (${orResponse.status}), attempting automatic failover to openrouter/free...`);
+        const fallbackPayload = {
+          model: 'openrouter/free',
+          models: ['openrouter/free', 'google/gemma-4-31b-it:free', 'nvidia/nemotron-3.5-lightning:free'],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature
+        };
+        const fallbackResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://musepush.app',
+            'X-Title': 'MusePush AI Studio',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(fallbackPayload)
+        });
+        if (fallbackResponse.ok) {
+          orResponse = fallbackResponse;
+          effectiveModel = 'openrouter/free';
+        }
+      }
+
       const directLatency = Date.now() - directStartTime;
 
       if (orResponse.ok) {
         const data = await orResponse.json();
         const content = data.choices?.[0]?.message?.content;
+        const actualModel = data.model || effectiveModel || selectedLlmModel;
+
         if (content) {
           const parsedVariations = parseOpenRouterPushResponse(content, {
             isUs: language === 'us',
@@ -322,11 +362,11 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
             return {
               success: true,
               source: 'openrouter',
-              modelUsed: selectedLlmModel,
+              modelUsed: actualModel,
               openRouterStatus: {
                 attempted: true,
                 success: true,
-                model: selectedLlmModel,
+                model: actualModel,
                 latencyMs: directLatency
               },
               activeParametersSummary: {
@@ -352,9 +392,34 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
             };
           }
         }
+      } else {
+        const errText = await orResponse.text().catch(() => '');
+        let errorDetail = '';
+        try {
+          const errObj = JSON.parse(errText);
+          errorDetail = errObj.error?.message || errObj.message || errText;
+        } catch {
+          errorDetail = errText;
+        }
+
+        const lowErr = errorDetail.toLowerCase();
+        if (lowErr.includes('no available model provider') || lowErr.includes('no endpoints found') || lowErr.includes('routing requirements')) {
+          openRouterFailureReason = "OpenRouter a bloqué l'accès aux modèles free. Active 'Allow data collection for free models' dans tes paramètres OpenRouter (openrouter.ai/settings/privacy).";
+        } else if (orResponse.status === 429 || lowErr.includes('rate limit')) {
+          openRouterFailureReason = "Quota de requêtes gratuites atteint (20 req/min). Réessaye dans 20 secondes ou choisis un autre modèle.";
+        } else if (orResponse.status === 402 || lowErr.includes('credit')) {
+          openRouterFailureReason = "OpenRouter exige un solde non-négatif pour les modèles gratuits. Vérifie tes crédits sur openrouter.ai/credits.";
+        } else if (orResponse.status === 401) {
+          openRouterFailureReason = "Clé API OpenRouter invalide (sk-or-v1-...). Vérifie ta clé sur openrouter.ai/keys.";
+        } else if (lowErr.includes('preset') || orResponse.status === 404) {
+          openRouterFailureReason = `Le preset '${selectedLlmModel}' est introuvable sur ton compte. Vérifie son slug sur openrouter.ai/presets ou choisis 'openrouter/free'.`;
+        } else {
+          openRouterFailureReason = `OpenRouter erreur (HTTP ${orResponse.status}): ${errorDetail.slice(0, 140)}`;
+        }
       }
-    } catch (openRouterErr) {
+    } catch (openRouterErr: any) {
       console.warn('Direct OpenRouter call error, falling back to local simulated variations:', openRouterErr);
+      openRouterFailureReason = openRouterErr?.message || 'Erreur réseau vers OpenRouter';
     }
   }
 
@@ -382,7 +447,7 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
     openRouterStatus: apiKey ? {
       attempted: true,
       success: false,
-      error: 'Clé invalide ou échec de connexion OpenRouter — Fallback haute conversion actif'
+      error: openRouterFailureReason || 'Connexion OpenRouter non établie — Fallback haute conversion actif'
     } : undefined,
     activeParametersSummary: dynamicResult.activeParametersSummary,
     recommendations: dynamicResult.recommendations,

@@ -105,11 +105,12 @@ export interface OpenRouterStatusInfo {
 
 export interface OpenRouterTestResult {
   success: boolean;
-  status: 'connected' | 'error';
+  status: 'connected' | 'error' | 'warning';
   message: string;
   model?: string;
   creditInfo?: string;
   latencyMs?: number;
+  needsPrivacyAction?: boolean;
 }
 
 export interface GenerationResult {
