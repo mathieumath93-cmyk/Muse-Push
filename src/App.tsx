@@ -57,9 +57,9 @@ export default function App() {
   });
   const [selectedLlmModel, setSelectedLlmModel] = useState<string>(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('musepush_openrouter_model') : null;
-    if (!saved || saved === 'anthropic/claude-3.5-sonnet') {
-      if (typeof window !== 'undefined') localStorage.setItem('musepush_openrouter_model', '@preset/push-bot');
-      return '@preset/push-bot';
+    if (!saved || saved === 'anthropic/claude-3.5-sonnet' || saved === '@preset/push-bot') {
+      if (typeof window !== 'undefined') localStorage.setItem('musepush_openrouter_model', 'openrouter/free');
+      return 'openrouter/free';
     }
     return saved;
   });
@@ -399,12 +399,19 @@ export default function App() {
           setGeneratedMessagesHistory(prev => Array.from(new Set([...prev, ...freshTexts])).slice(-30));
         }
         if (result.openRouterStatus) {
+          const errStr = result.openRouterStatus.error || '';
+          const isRateLimit = errStr.includes('20 req/min') || errStr.includes('Quota') || errStr.includes('rate limit');
+
           setOpenRouterStatus({
             success: result.openRouterStatus.success,
-            status: result.openRouterStatus.success ? 'connected' : (openRouterApiKey ? 'error' : 'unknown'),
+            status: result.openRouterStatus.success
+              ? 'connected'
+              : (isRateLimit ? 'warning' : (openRouterApiKey ? 'error' : 'warning')),
             message: result.openRouterStatus.success 
               ? `Opérationnel via ${result.modelUsed}`
-              : (result.openRouterStatus.error || 'Erreur API OpenRouter'),
+              : (isRateLimit
+                  ? 'Quota gratuit OpenRouter temporisé (20 req/min) — Moteur Studio actif'
+                  : (result.openRouterStatus.error || 'Erreur API OpenRouter')),
             latencyMs: result.openRouterStatus.latencyMs,
             creditInfo: result.openRouterStatus.creditInfo
           });

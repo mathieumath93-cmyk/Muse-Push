@@ -35,6 +35,11 @@ export const Header: React.FC<HeaderProps> = ({
   isTestingOpenRouter = false,
   onTestOpenRouter
 }) => {
+  const isRateLimited = Boolean(
+    openRouterStatus?.message?.includes('20 req/min') ||
+    openRouterStatus?.message?.includes('Quota') ||
+    openRouterStatus?.message?.includes('rate limit')
+  );
   return (
     <header className="border-b border-white/10 bg-[#0b0b10]/95 backdrop-blur-xl sticky top-0 z-30 px-4 sm:px-8 py-3 transition-all">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -170,6 +175,8 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'Clique pour configurer ta clé OpenRouter (Claude, GPT, etc.)'
                   : openRouterStatus?.status === 'connected'
                   ? `OpenRouter connecté avec succès (${openRouterStatus.creditInfo || 'Actif'}) - Latence: ${openRouterStatus.latencyMs || 0}ms`
+                  : isRateLimited
+                  ? 'Quota gratuit OpenRouter en pause temporaire (20s) - Moteur Créatif Studio actif en relais'
                   : openRouterStatus?.status === 'error'
                   ? `Erreur OpenRouter: ${openRouterStatus.message}`
                   : 'OpenRouter configuré (clique pour tester ou changer)'
@@ -179,6 +186,8 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:bg-white/10'
                   : openRouterStatus?.status === 'connected'
                   ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                  : isRateLimited
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-200 hover:bg-amber-500/25'
                   : openRouterStatus?.status === 'error'
                   ? 'bg-rose-500/15 border-rose-500/40 text-rose-300 hover:bg-rose-500/25'
                   : 'bg-purple-500/15 border-purple-500/40 text-purple-200 hover:bg-purple-500/25'
@@ -187,6 +196,8 @@ export const Header: React.FC<HeaderProps> = ({
               <Bot className={`w-3.5 h-3.5 ${
                 openRouterStatus?.status === 'connected'
                   ? 'text-emerald-400'
+                  : isRateLimited
+                  ? 'text-amber-400'
                   : openRouterStatus?.status === 'error'
                   ? 'text-rose-400'
                   : 'text-purple-400'
@@ -211,6 +222,13 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
                     <span className="font-mono text-[11px] font-bold text-emerald-300 flex items-center gap-1">
                       {selectedModel === '@preset/push-bot' ? 'push-bot OK' : 'OpenRouter OK'} {openRouterStatus.latencyMs ? `(${openRouterStatus.latencyMs}ms)` : ''}
+                    </span>
+                  </>
+                ) : isRateLimited ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="font-mono text-[11px] font-bold text-amber-300">
+                      Quota 20s (Studio Actif)
                     </span>
                   </>
                 ) : openRouterStatus?.status === 'error' ? (

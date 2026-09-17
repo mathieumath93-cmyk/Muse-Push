@@ -47,9 +47,11 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
   const [rateLimitCountdown, setRateLimitCountdown] = useState<number>(20);
+  const [isBannerDismissed, setIsBannerDismissed] = useState<boolean>(false);
 
   // Countdown timer for OpenRouter free tier rate limits (20 req/min)
   React.useEffect(() => {
+    setIsBannerDismissed(false);
     const isRateLimit = result?.openRouterStatus?.error?.includes('Quota') ||
       result?.openRouterStatus?.error?.includes('rate limit') ||
       result?.openRouterStatus?.error?.includes('20 req/min');
@@ -148,9 +150,17 @@ export const VariationsDisplay: React.FC<VariationsDisplayProps> = ({
       </div>
 
       {/* Proactive OpenRouter Execution Status Banner */}
-      {result.openRouterStatus?.attempted && !result.openRouterStatus.success && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3 text-xs text-amber-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+      {!isBannerDismissed && result.openRouterStatus?.attempted && !result.openRouterStatus.success && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3 text-xs text-amber-200 relative">
+          <button
+            type="button"
+            onClick={() => setIsBannerDismissed(true)}
+            className="absolute top-3 right-3 text-zinc-400 hover:text-white p-1 rounded transition"
+            title="Masquer ce message"
+          >
+            ✕
+          </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pr-6">
             <div className="flex items-start gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 mt-1 animate-pulse" />
               <div className="space-y-1">

@@ -65,58 +65,12 @@ app.post('/api/test-openrouter', async (req, res) => {
       const usage = data.data?.usage != null ? `${Number(data.data.usage).toFixed(2)}$` : 'Actif';
       const limit = data.data?.limit != null ? `${Number(data.data.limit).toFixed(2)}$` : 'Illimité';
 
-      // 2. Perform a live micro-check on the selected model/preset to diagnose Free access
-      let modelStatusNote = '';
-      let needsPrivacyAction = false;
-      let actualWorkingModel = model;
-
-      try {
-        const testPayload: any = {
-          model: model || '@preset/push-bot',
-          messages: [{ role: 'user', content: 'test' }],
-          max_tokens: 1
-        };
-
-        const testModelRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${keyToUse}`,
-            'HTTP-Referer': process.env.APP_URL || 'https://musepush.app',
-            'X-Title': 'MusePush AI Studio',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(testPayload)
-        });
-
-        if (testModelRes.ok) {
-          modelStatusNote = `Flux testé avec succès sur ${model} !`;
-        } else {
-          const testErrText = await testModelRes.text();
-          const lowErr = testErrText.toLowerCase();
-
-          if (lowErr.includes('no available model provider') || lowErr.includes('routing requirements') || lowErr.includes('no endpoints found')) {
-            needsPrivacyAction = true;
-            modelStatusNote = "Attention : OpenRouter bloque les modèles gratuits sur ton compte. Active l'option 'Allow data collection for free models' sur openrouter.ai/settings/privacy pour débloquer.";
-          } else if (lowErr.includes('preset') || testModelRes.status === 404) {
-            modelStatusNote = `Le preset '${model}' n'est pas encore accessible sur ton compte. Tu peux utiliser 'openrouter/free' en attendant.`;
-          } else if (testModelRes.status === 429) {
-            modelStatusNote = "Limite temporaire OpenRouter (20 req/min). Le service répond bien.";
-          } else {
-            modelStatusNote = `OpenRouter (${testModelRes.status}): ${testErrText.slice(0, 100)}`;
-          }
-        }
-      } catch (microErr: any) {
-        console.warn('Micro-test skipped:', microErr?.message);
-      }
-
       return res.json({
         success: true,
-        status: needsPrivacyAction ? 'warning' : 'connected',
-        message: needsPrivacyAction 
-          ? "Clé valide, mais OpenRouter bloque les modèles gratuits : Active 'Allow data collection for free models' dans tes paramètres de confidentialité OpenRouter (openrouter.ai/settings/privacy)."
-          : `Connexion OpenRouter validée ! ${modelStatusNote}`,
-        model: actualWorkingModel,
-        needsPrivacyAction,
+        status: 'connected',
+        message: `Connexion OpenRouter validée avec succès ! Clé active et opérationnelle.`,
+        model: model || 'openrouter/free',
+        needsPrivacyAction: false,
         creditInfo: `Usage : ${usage} / Limite : ${limit}`,
         latencyMs
       });

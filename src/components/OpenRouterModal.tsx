@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { OPENROUTER_MODELS } from '../data';
-import { Key, Bot, Settings2, Shield, Check, Info, RefreshCw, CheckCircle2, AlertTriangle, ExternalLink, Sparkles } from 'lucide-react';
+import { Key, Bot, Settings2, Shield, Check, Info, RefreshCw, CheckCircle2, AlertTriangle, ExternalLink, Sparkles, Clock } from 'lucide-react';
 import { OpenRouterTestResult } from '../types';
 
 interface OpenRouterModalProps {
@@ -54,6 +54,12 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
     }
   };
 
+  const isRateLimited = Boolean(
+    openRouterStatus?.message?.includes('20 req/min') ||
+    openRouterStatus?.message?.includes('Quota') ||
+    openRouterStatus?.message?.includes('rate limit')
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
       <div className="bg-[#161622] border border-white/10 rounded-2xl p-6 max-w-lg w-full shadow-2xl">
@@ -81,6 +87,10 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
             ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
             : openRouterStatus?.status === 'connected'
             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+            : isRateLimited
+            ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+            : openRouterStatus?.status === 'warning'
+            ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
             : openRouterStatus?.status === 'error'
             ? 'bg-rose-500/10 border-rose-500/30 text-rose-200'
             : 'bg-white/5 border-white/10 text-zinc-400'
@@ -96,6 +106,11 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
                 <>
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span className="text-emerald-300 font-bold">OpenRouter opérationnel et connecté</span>
+                </>
+              ) : isRateLimited ? (
+                <>
+                  <Clock className="w-4 h-4 text-amber-400" />
+                  <span className="text-amber-300 font-bold">Quota gratuit en pause temporaire (20s)</span>
                 </>
               ) : openRouterStatus?.status === 'warning' ? (
                 <>
@@ -123,7 +138,9 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
           </div>
 
           <p className="text-[11px] leading-relaxed">
-            {openRouterStatus?.message || "Renseigne ta clé sk-or-v1-... puis clique sur 'Tester la clé' pour valider immédiatement le fonctionnement."}
+            {isRateLimited
+              ? "OpenRouter plafonne les requêtes gratuites à 20 req/min. Ta clé est valide. Le Moteur Créatif Studio prend automatiquement le relais pour que tes générations continuent sans interruption."
+              : (openRouterStatus?.message || "Renseigne ta clé sk-or-v1-... puis clique sur 'Tester la clé' pour valider immédiatement le fonctionnement.")}
           </p>
 
           {openRouterStatus?.creditInfo && (
@@ -132,7 +149,7 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
             </div>
           )}
 
-          {(openRouterStatus?.needsPrivacyAction || openRouterStatus?.status === 'warning') && (
+          {openRouterStatus?.needsPrivacyAction && !isRateLimited && (
             <div className="mt-2.5 p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-[11px] text-amber-200 space-y-2">
               <div className="font-semibold text-amber-300 flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -152,7 +169,7 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
             </div>
           )}
 
-          {openRouterStatus?.status === 'error' && !openRouterStatus?.needsPrivacyAction && (
+          {openRouterStatus?.status === 'error' && !openRouterStatus?.needsPrivacyAction && !isRateLimited && (
             <div className="mt-2 pt-2 border-t border-rose-500/20 text-[11px] text-rose-300/90 space-y-1">
               <p>💡 Vérifie que ta clé est bien active ou que l'option de confidentialité OpenRouter est cochée.</p>
               <div className="flex gap-2 pt-1">
