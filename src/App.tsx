@@ -197,6 +197,25 @@ export default function App() {
     });
   };
 
+  const handleSelectLanguage = (newLang: Language) => {
+    setLanguage(newLang);
+    const defaultFr = "Sous les draps en train de me toucher doucement, la lumière tamisée de ma lampe de chevet...";
+    const defaultUs = "Under the sheets touching myself slowly, with the soft dim light of my bedside lamp on...";
+    setConfig(prev => {
+      let nextMediaContext = prev.mediaContext;
+      if (newLang === 'us' && (!nextMediaContext || nextMediaContext === defaultFr)) {
+        nextMediaContext = defaultUs;
+      } else if (newLang === 'fr' && (!nextMediaContext || nextMediaContext === defaultUs)) {
+        nextMediaContext = defaultFr;
+      }
+      return {
+        ...prev,
+        language: newLang,
+        mediaContext: nextMediaContext
+      };
+    });
+  };
+
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
   const [generatedMessagesHistory, setGeneratedMessagesHistory] = useState<string[]>([]);
@@ -323,9 +342,9 @@ export default function App() {
   const handleGeneratePush = async () => {
     setIsGenerating(true);
     try {
-      // Filter relevant training examples by platform and language, or pass top 4
+      // Filter relevant training examples strictly by language to never contaminate US generation with French text
       const relevantTraining = trainingExamples.filter(
-        ex => ex.language === language || ex.platform === platform
+        ex => ex.language === language
       ).slice(0, 4);
 
       // Auto-adjust temperature based on varietyLevel (low: 0.40, medium: 0.75, high: 1.10)
@@ -338,6 +357,15 @@ export default function App() {
         ...generatedMessagesHistory,
         ...(generationResult?.variations?.map(v => v.message).filter(Boolean) || [])
       ])).slice(-25);
+
+      // Adapt playbook rules to the selected language
+      const effectivePlaybookRules = language === 'us'
+        ? `- The subscriber is ALREADY inside his DM inbox: STRICTLY FORBIDDEN to say "DM me" or "text me in DM".
+- Strictly respect the requested sentence length (${config.sentenceCount}) with zero fluff.
+- Frequently start the first sentence in lowercase for real spontaneous texting realism.
+- Zero commercial marketing words ("promotion", "special offer", "subscribe").
+- 100% realistic bedroom/home setting (bedroom mirror, bed, sheets, shower, lingerie haul).`
+        : agencyPlaybookRules;
 
       const result = await executePushGeneration({
         modelProfile: selectedModel,
@@ -356,7 +384,7 @@ export default function App() {
         timeContext: config.timeContext,
         previousMessages: previousMessagesToAvoid,
         trainingExamples: relevantTraining,
-        agencyPlaybookRules,
+        agencyPlaybookRules: effectivePlaybookRules,
         openRouterConfig: {
           apiKey: openRouterApiKey,
           model: selectedLlmModel,
@@ -399,7 +427,7 @@ export default function App() {
         platform={platform}
         language={language}
         onSelectPlatform={setPlatform}
-        onSelectLanguage={setLanguage}
+        onSelectLanguage={handleSelectLanguage}
         onOpenSettings={() => setIsSettingsOpen(true)}
         hasApiKey={Boolean(openRouterApiKey)}
         selectedModel={selectedLlmModel}
@@ -442,7 +470,7 @@ export default function App() {
                 config={config}
                 onChangeConfig={handleConfigChange}
                 language={language}
-                onSelectLanguage={setLanguage}
+                onSelectLanguage={handleSelectLanguage}
                 onOpenAddModel={handleOpenAddModel}
               />
 

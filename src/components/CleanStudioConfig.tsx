@@ -100,6 +100,46 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
 
   return (
     <div className="bg-[#121218] border border-white/10 rounded-2xl p-5 shadow-xl space-y-4">
+      {/* Top Bar: Quick Language & Type Info */}
+      <div className="flex items-center justify-between pb-3 border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Langue de rédaction</span>
+          {onSelectLanguage && (
+            <div className="flex items-center bg-black/50 p-0.5 rounded-lg border border-white/10 text-xs">
+              <button
+                type="button"
+                id="btn-lang-fr"
+                onClick={() => onSelectLanguage('fr')}
+                className={`px-2.5 py-1 rounded-md font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  language === 'fr'
+                    ? 'bg-rose-500 text-white shadow-sm ring-1 ring-rose-400'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <span>🇫🇷</span>
+                <span>FR</span>
+              </button>
+              <button
+                type="button"
+                id="btn-lang-us"
+                onClick={() => onSelectLanguage('us')}
+                className={`px-2.5 py-1 rounded-md font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  language === 'us'
+                    ? 'bg-indigo-500 text-white shadow-sm ring-1 ring-indigo-400'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <span>🇺🇸</span>
+                <span>US (English)</span>
+              </button>
+            </div>
+          )}
+        </div>
+        <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
+          {language === 'us' ? 'Mode US Actif 🇺🇸' : 'Mode Français Actif 🇫🇷'}
+        </span>
+      </div>
+
       {/* 1. Type de Mass Message : Payant (PPV) vs Simple (Gratuit/Relationnel) */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -172,69 +212,81 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
         </div>
       </div>
 
-      {/* 2. Longueur & Nombre de phrases (Contrôle concision demandé par l'utilisateur) */}
+      {/* 2. Longueur & Nombre de phrases */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <label className="text-xs font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
             <AlignLeft className="w-3.5 h-3.5 text-indigo-400" />
-            <span>2. Longueur du message (Simple & Direct)</span>
+            <span>2. Longueur du message</span>
           </label>
-          <span className="text-[10px] text-emerald-400 font-medium">
-            1 phrase = 0 blabla
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition ${
+            config.sentenceCount === 'one_line' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+            config.sentenceCount === 'ultra_short' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' :
+            config.sentenceCount === 'short' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
+            'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+          }`}>
+            {config.sentenceCount === 'one_line' && '✓ Actif : 1 phrase (Ultra-direct)'}
+            {config.sentenceCount === 'ultra_short' && '✓ Actif : 1-2 phrases (SMS court)'}
+            {config.sentenceCount === 'short' && '✓ Actif : 2 phrases (Rythmé)'}
+            {config.sentenceCount === 'medium' && '✓ Actif : 2-3 phrases (Détaillé)'}
           </span>
         </div>
 
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <button
             type="button"
+            id="btn-length-one-line"
             onClick={() => onChangeConfig({ sentenceCount: 'one_line' })}
-            className={`py-2 px-1.5 rounded-xl border text-center transition flex flex-col items-center justify-center ${
+            className={`py-2 px-2 rounded-xl border text-center transition flex flex-col items-center justify-center cursor-pointer ${
               config.sentenceCount === 'one_line'
-                ? 'bg-emerald-500/20 border-emerald-500/60 text-white ring-1 ring-emerald-500/40'
-                : 'bg-white/[0.02] border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                ? 'bg-emerald-500/25 border-emerald-500/80 text-white ring-2 ring-emerald-500/40 shadow-sm'
+                : 'bg-white/[0.02] border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'
             }`}
           >
-            <span className="text-xs font-bold text-emerald-300">1 phrase</span>
-            <span className="text-[9px] text-zinc-400">Ultra-simple</span>
+            <span className={`text-xs font-bold ${config.sentenceCount === 'one_line' ? 'text-emerald-300' : 'text-zinc-300'}`}>1 phrase</span>
+            <span className="text-[10px] text-zinc-400">Ultra-simple</span>
           </button>
 
           <button
             type="button"
+            id="btn-length-ultra-short"
             onClick={() => onChangeConfig({ sentenceCount: 'ultra_short' })}
-            className={`py-2 px-1.5 rounded-xl border text-center transition flex flex-col items-center justify-center ${
+            className={`py-2 px-2 rounded-xl border text-center transition flex flex-col items-center justify-center cursor-pointer ${
               config.sentenceCount === 'ultra_short'
-                ? 'bg-indigo-500/20 border-indigo-500/60 text-white ring-1 ring-indigo-500/40'
-                : 'bg-white/[0.02] border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                ? 'bg-indigo-500/25 border-indigo-500/80 text-white ring-2 ring-indigo-500/40 shadow-sm'
+                : 'bg-white/[0.02] border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'
             }`}
           >
-            <span className="text-xs font-bold">1-2 phrases</span>
-            <span className="text-[9px] text-zinc-400">SMS court</span>
+            <span className={`text-xs font-bold ${config.sentenceCount === 'ultra_short' ? 'text-indigo-300' : 'text-zinc-300'}`}>1-2 phrases</span>
+            <span className="text-[10px] text-zinc-400">SMS court</span>
           </button>
 
           <button
             type="button"
+            id="btn-length-short"
             onClick={() => onChangeConfig({ sentenceCount: 'short' })}
-            className={`py-2 px-1.5 rounded-xl border text-center transition flex flex-col items-center justify-center ${
+            className={`py-2 px-2 rounded-xl border text-center transition flex flex-col items-center justify-center cursor-pointer ${
               config.sentenceCount === 'short'
-                ? 'bg-indigo-500/20 border-indigo-500/60 text-white ring-1 ring-indigo-500/40'
-                : 'bg-white/[0.02] border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                ? 'bg-purple-500/25 border-purple-500/80 text-white ring-2 ring-purple-500/40 shadow-sm'
+                : 'bg-white/[0.02] border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'
             }`}
           >
-            <span className="text-xs font-bold">2 phrases</span>
-            <span className="text-[9px] text-zinc-400">Court</span>
+            <span className={`text-xs font-bold ${config.sentenceCount === 'short' ? 'text-purple-300' : 'text-zinc-300'}`}>2 phrases</span>
+            <span className="text-[10px] text-zinc-400">Rythmé</span>
           </button>
 
           <button
             type="button"
+            id="btn-length-medium"
             onClick={() => onChangeConfig({ sentenceCount: 'medium' })}
-            className={`py-2 px-1.5 rounded-xl border text-center transition flex flex-col items-center justify-center ${
+            className={`py-2 px-2 rounded-xl border text-center transition flex flex-col items-center justify-center cursor-pointer ${
               config.sentenceCount === 'medium'
-                ? 'bg-indigo-500/20 border-indigo-500/60 text-white ring-1 ring-indigo-500/40'
-                : 'bg-white/[0.02] border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
+                ? 'bg-rose-500/25 border-rose-500/80 text-white ring-2 ring-rose-500/40 shadow-sm'
+                : 'bg-white/[0.02] border-white/10 text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'
             }`}
           >
-            <span className="text-xs font-bold">2-3 phrases</span>
-            <span className="text-[9px] text-zinc-400">Détaillé</span>
+            <span className={`text-xs font-bold ${config.sentenceCount === 'medium' ? 'text-rose-300' : 'text-zinc-300'}`}>2-3 phrases</span>
+            <span className="text-[10px] text-zinc-400">Détaillé</span>
           </button>
         </div>
       </div>

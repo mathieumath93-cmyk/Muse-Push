@@ -339,7 +339,31 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
           });
 
           if (parsedVariations && parsedVariations.length > 0) {
+            const isUs = language === 'us';
             let sanitizedVars = parsedVariations;
+
+            // Check if model returned French while language is US
+            if (isUs) {
+              const frenchIndicators = /\b(je |tu |moi |mon |ma |mes |dans |avec |pour |regarde |débloque |viens |chambre |draps |ce soir|cet après-midi)\b/i;
+              sanitizedVars = sanitizedVars.map((v: any) => {
+                if (!v || typeof v.message !== 'string') return v;
+                let msg = v.message;
+                // If it contains French, replace with US dynamic variation
+                if (frenchIndicators.test(msg)) {
+                  const quickUS = [
+                    `quick break from my day in sheer lace... look what I get up to when I'm alone 🫦`,
+                    `admit you weren't expecting me to send something this intimate today... tell me what you think 👀`,
+                    `spontaneous thought for you straight from my room... check what I did 🤍`,
+                    `if you were here right now, what would you do first? tell me honestly 🫦`,
+                    `couldn't stop thinking about what we said earlier... so I made a little video just for you ✨`,
+                    `did something today I promised myself I'd keep private... unlock to see what happened 🤫`
+                  ];
+                  msg = quickUS[Math.floor(Math.random() * quickUS.length)];
+                }
+                return { ...v, message: msg };
+              });
+            }
+
             if (resolvedTime.period === 'lunch' || resolvedTime.period === 'afternoon') {
               sanitizedVars = sanitizedVars.map((v: any) => {
                 if (!v || typeof v.message !== 'string') return v;
@@ -380,13 +404,15 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
                 antiRepetitionCount: Array.isArray(params.previousMessages) ? params.previousMessages.length : 0,
                 timeZone: resolvedTime.tzZone,
                 fanTime: resolvedTime.timeString,
-                period: resolvedTime.periodLabelFr
+                period: isUs ? resolvedTime.periodLabelUs : resolvedTime.periodLabelFr
               },
               recommendations: {
-                bestSendTimeFanTz: `${resolvedTime.timeString} (${resolvedTime.periodLabelFr})`,
-                currentFanLocalTime: `${resolvedTime.timeString} — ${resolvedTime.periodLabelFr}`,
-                pricingTip: isPaidPush ? `Prix conseillé: ${priceSuggestion || 15}€` : 'Push gratuit de relance',
-                safetyAudit: 'Termes conformes et validés'
+                bestSendTimeFanTz: `${resolvedTime.timeString} (${isUs ? resolvedTime.periodLabelUs : resolvedTime.periodLabelFr})`,
+                currentFanLocalTime: `${resolvedTime.timeString} — ${isUs ? resolvedTime.periodLabelUs : resolvedTime.periodLabelFr}`,
+                pricingTip: isPaidPush
+                  ? (isUs ? `Recommended PPV: $${priceSuggestion || 15}` : `Prix conseillé: ${priceSuggestion || 15}€`)
+                  : (isUs ? 'Free retention & reply opener' : 'Push gratuit de relance'),
+                safetyAudit: isUs ? 'Strictly TOS-compliant and validated' : 'Termes conformes et validés'
               },
               variations: sanitizedVars
             };

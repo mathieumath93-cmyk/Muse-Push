@@ -285,18 +285,36 @@ export function buildPushPrompts(params: BuildPushPromptsParams): {
 
   // Sentence length guidelines
   let lengthDirective = '';
+  let sampleMessageExample = '';
   if (sentenceCount === 'one_line') {
     lengthDirective = isUs
-      ? `STRICT LENGTH: EXACTLY 1 SINGLE LINE (8 to 15 words max). ZERO line breaks, zero fluff. Direct text-message punch.`
-      : `LONGUEUR STRICTE : EXACTEMENT 1 SEULE PHRASE UNIQUE (8 à 15 mots maximum). ZÉRO retour à la ligne, zéro blabla. Style SMS percutant en une ligne.`;
+      ? `STRICT LENGTH MANDATE: EXACTLY 1 SINGLE SENTENCE (8 to 15 words max). ZERO line breaks, zero second sentences, zero fluff. Direct text-message punch on 1 single line.`
+      : `LONGUEUR STRICTE OBLIGATOIRE : EXACTEMENT 1 SEULE PHRASE UNIQUE (8 à 15 mots maximum). ZÉRO retour à la ligne, zéro deuxième phrase, zéro blabla. Style SMS percutant en une seule ligne.`;
+    sampleMessageExample = isUs
+      ? "Single punchy text line in American English without line breaks..."
+      : "Une seule phrase percutante en un seul bloc sans saut de ligne...";
   } else if (sentenceCount === 'ultra_short') {
     lengthDirective = isUs
-      ? `STRICT LENGTH: ULTRA-SHORT (1 to 2 short sentences, 15 to 25 words).`
-      : `LONGUEUR STRICTE : ULTRA-COURT (1 à 2 phrases courtes, 15 à 25 mots).`;
-  } else {
+      ? `STRICT LENGTH MANDATE: EXACTLY 1 TO 2 SHORT SENTENCES (15 to 25 words). Sentence 1: intimate visual hook. Sentence 2: short tease, reaction, or question.`
+      : `LONGUEUR STRICTE OBLIGATOIRE : EXACTEMENT 1 À 2 PHRASES COURTES (15 à 25 mots). 1ère phrase : accroche visuelle intime. 2ème phrase : pique taquine, question complice ou appel à voir.`;
+    sampleMessageExample = isUs
+      ? "First short conversational sentence. Second quick provocative tease or question..."
+      : "Première phrase courte et spontanée. Deuxième phrase avec une question complice ou un défi...";
+  } else if (sentenceCount === 'medium') {
     lengthDirective = isUs
-      ? `STRICT LENGTH: SHORT (2 short sentences, 25 to 40 words max).`
-      : `LONGUEUR STRICTE : COURT (2 phrases rythmées, 25 à 40 mots max).`;
+      ? `STRICT LENGTH MANDATE: 2 TO 3 DEVELOPED SENTENCES (35 to 55 words, with clean line breaks). Sentence 1: atmospheric scene setting. Sentence 2: intimate confession or sensory detail. Sentence 3: compelling tease or unlock invite.`
+      : `LONGUEUR STRICTE OBLIGATOIRE : 2 À 3 PHRASES DÉVELOPPÉES (35 à 55 mots, avec saut de ligne). 1ère phrase : ambiance et contexte de la scène. 2ème phrase : aveu intime ou détail sensoriel troublant. 3ème phrase : invitation irrésistible au déblocage.`;
+    sampleMessageExample = isUs
+      ? "First sentence setting the intimate bedroom scene.\n\nSecond sentence revealing what happens next and third sentence with the unlock tease..."
+      : "Première phrase posant le décor intime dans les draps.\n\nDeuxième phrase avec un aveu sensoriel et troisième phrase invitant à débloquer...";
+  } else {
+    // default 'short' (2 phrases)
+    lengthDirective = isUs
+      ? `STRICT LENGTH MANDATE: EXACTLY 2 DISTINCT SENTENCES (20 to 35 words). Sentence 1: intimate scene setting. Sentence 2: punchy seductive tease or unlock call.`
+      : `LONGUEUR STRICTE OBLIGATOIRE : EXACTEMENT 2 PHRASES DISTINCTES (20 à 35 mots). 1ère phrase : pose le décor intime. 2ème phrase : accroche piquante ou invitation au déblocage.`;
+    sampleMessageExample = isUs
+      ? "First evocative sentence setting the mood. Second distinct sentence delivering the provocative hook..."
+      : "Première phrase évocatrice posant l'ambiance. Deuxième phrase distincte avec l'accroche sensuelle...";
   }
 
   // Push Type (Paid PPV vs Free Retention)
@@ -354,7 +372,15 @@ ${cleanHistory}
     : `"devant mon miroir", "j'ai fait une bêtise", "tu vas pas en revenir", "je devrais pas te montrer ça", "viens en DM", "réponds en DM", "viens me consoler", "petit secret", "craqué sur un colis"`;
 
   const systemPrompt = isUs
-    ? `You are an elite ghostwriter & copywriting strategist for top female creators on ${platform === 'onlyfans' ? 'OnlyFans' : 'MYM'}.
+    ? `================================================================================
+CRITICAL MANDATE - TARGET LANGUAGE: 100% AMERICAN ENGLISH (US)
+EVERY SINGLE MASS MESSAGE MUST BE WRITTEN IN NATURAL, CASUAL AMERICAN ENGLISH.
+DO NOT WRITE IN FRENCH UNDER ANY CIRCUMSTANCES!
+EVEN IF THE CREATOR PROFILE, MEDIA DESCRIPTION, OR INPUT PROMPTS ARE IN FRENCH,
+YOU MUST TRANSLATE AND GENERATE 100% PURE AMERICAN ENGLISH.
+================================================================================
+
+You are an elite ghostwriter & copywriting strategist for top female creators on ${platform === 'onlyfans' ? 'OnlyFans' : 'MYM'}.
 Your objective is to generate MASS MESSAGES that drive exceptional open rates, engagement, and PPV unlocks while sounding 100% natural, authentic, and seductive.
 
 CORE VIBE & CIRCUMSTANCE:
@@ -362,16 +388,17 @@ CORE VIBE & CIRCUMSTANCE:
 - GUIDANCE: ${moodGuidance}
 
 NON-NEGOTIABLE COMMUNICATION RULES:
-1. THE FAN IS ALREADY IN THE DM INBOX:
+1. STRICT TARGET LANGUAGE: Natural American English (US). Absolute zero French.
+2. THE FAN IS ALREADY IN THE DM INBOX:
    - STRICTLY FORBIDDEN to say "DM me", "shoot me a DM", "in my DMs". He is ALREADY reading this inside his private messages!
-2. AVOID ROBOTIC QUESTIONS:
+3. AVOID ROBOTIC QUESTIONS:
    - Prefer confident statements, spontaneous impulses, provocative banter, or vivid sensory details over lazy questions ("what are you doing?").
-3. 100% HOME REALISM:
+4. 100% HOME REALISM:
    - Realistic home setting: bed, couch, bathroom mirror, dressing room, kitchen.
-4. ABSOLUTE DIVERSITY & NOVELTY:
+5. ABSOLUTE DIVERSITY & NOVELTY:
    - NEVER repeat the same grammar pattern. Each of the 6 proposals must have its own unique soul and rhythm.
    - BANNED CLICHÉS: ${bannedTropes}.
-5. REAL-TIME CLOCK CONTEXT:
+6. REAL-TIME CLOCK CONTEXT:
    - Local fan time is ${resolvedTime.timeString} (${resolvedTime.periodLabelUs}).
    - Atmosphere: ${resolvedTime.contextualAtmosphereUs}.
    - Forbidden words: ${resolvedTime.forbiddenWordsUs.join(', ')}.`
@@ -398,7 +425,13 @@ RÈGLES D'OR DE RÉDACTION :
    - Mots formellement interdits à cette heure : ${resolvedTime.forbiddenWordsFr.join(', ')}.`;
 
   const userPrompt = isUs
-    ? `GENERATE 6 HIGHLY DIVERSE, RADICALLY DIFFERENT PUSH PROPOSITIONS:
+    ? `================================================================================
+CRITICAL REQUIREMENT:
+- TARGET LANGUAGE: AMERICAN ENGLISH (US). ZERO FRENCH ALLOWED.
+- LENGTH MANDATE: ${lengthDirective}
+================================================================================
+
+GENERATE 6 HIGHLY DIVERSE, RADICALLY DIFFERENT PUSH PROPOSITIONS:
 
 CREATOR PROFILE:
 - Name: ${modelProfile?.name || 'Creator'}, ${modelProfile?.age || 23} years old.
@@ -406,6 +439,7 @@ CREATOR PROFILE:
 - Personality: ${modelProfile?.personality || 'Playful, confident, intimate'}
 - Home habits: ${modelProfile?.homeHabits || 'Chilling in lace, bedroom mirror'}
 - Signature Emojis: ${(modelProfile?.favoriteEmojis || ['✨', '🫦']).join(' ')}
+(Note: Even if profile details are described in French above, you must address US subscribers in natural American English!)
 
 PARAMETERS TO THOROUGHLY INTEGRATE:
 - Platform: ${platform.toUpperCase()}
@@ -436,7 +470,7 @@ Return ONLY valid JSON matching this structure:
       "id": "var-1",
       "angle": "${chosenTriggers[0].id}",
       "angleLabel": "${chosenTriggers[0].labelUs}",
-      "message": "Direct, punchy, unrepeated message applying trigger #1...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "92%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `$${priceSuggestion}` : '$15') : 'Free'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Exclusive PPV') : 'Free / DM'}",
@@ -446,7 +480,7 @@ Return ONLY valid JSON matching this structure:
       "id": "var-2",
       "angle": "${chosenTriggers[1].id}",
       "angleLabel": "${chosenTriggers[1].labelUs}",
-      "message": "Completely different tone and grammar applying trigger #2...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "89%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `$${priceSuggestion}` : '$15') : 'Free'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Exclusive PPV') : 'Free / DM'}",
@@ -456,7 +490,7 @@ Return ONLY valid JSON matching this structure:
       "id": "var-3",
       "angle": "${chosenTriggers[2].id}",
       "angleLabel": "${chosenTriggers[2].labelUs}",
-      "message": "Fresh distinct phrasing applying trigger #3...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "94%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `$${priceSuggestion}` : '$15') : 'Free'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Exclusive PPV') : 'Free / DM'}",
@@ -466,7 +500,7 @@ Return ONLY valid JSON matching this structure:
       "id": "var-4",
       "angle": "${chosenTriggers[3].id}",
       "angleLabel": "${chosenTriggers[3].labelUs}",
-      "message": "Surprising hook applying trigger #4...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "91%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `$${priceSuggestion}` : '$15') : 'Free'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Exclusive PPV') : 'Free / DM'}",
@@ -476,7 +510,7 @@ Return ONLY valid JSON matching this structure:
       "id": "var-5",
       "angle": "${chosenTriggers[4].id}",
       "angleLabel": "${chosenTriggers[4].labelUs}",
-      "message": "Intimate angle applying trigger #5...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "88%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `$${priceSuggestion}` : '$15') : 'Free'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Exclusive PPV') : 'Free / DM'}",
@@ -486,7 +520,7 @@ Return ONLY valid JSON matching this structure:
       "id": "var-6",
       "angle": "${chosenTriggers[5].id}",
       "angleLabel": "${chosenTriggers[5].labelUs}",
-      "message": "Bold closing proposition applying trigger #6...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "95%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `$${priceSuggestion}` : '$15') : 'Free'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Exclusive PPV') : 'Free / DM'}",
@@ -532,7 +566,7 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure :
       "id": "var-1",
       "angle": "${chosenTriggers[0].id}",
       "angleLabel": "${chosenTriggers[0].labelFr}",
-      "message": "Texte court et percutant appliquant l'angle #1...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "92%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `${priceSuggestion}€` : '15€') : 'Gratuit'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Média exclusif PPV') : 'Offert / DM'}",
@@ -542,7 +576,7 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure :
       "id": "var-2",
       "angle": "${chosenTriggers[1].id}",
       "angleLabel": "${chosenTriggers[1].labelFr}",
-      "message": "Tournure et énergie totalement différentes appliquant l'angle #2...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "89%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `${priceSuggestion}€` : '15€') : 'Gratuit'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Média exclusif PPV') : 'Offert / DM'}",
@@ -552,7 +586,7 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure :
       "id": "var-3",
       "angle": "${chosenTriggers[2].id}",
       "angleLabel": "${chosenTriggers[2].labelFr}",
-      "message": "Rythme inédit appliquant l'angle #3...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "94%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `${priceSuggestion}€` : '15€') : 'Gratuit'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Média exclusif PPV') : 'Offert / DM'}",
@@ -562,7 +596,7 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure :
       "id": "var-4",
       "angle": "${chosenTriggers[3].id}",
       "angleLabel": "${chosenTriggers[3].labelFr}",
-      "message": "Accroche surprenante appliquant l'angle #4...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "91%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `${priceSuggestion}€` : '15€') : 'Gratuit'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Média exclusif PPV') : 'Offert / DM'}",
@@ -572,7 +606,7 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure :
       "id": "var-5",
       "angle": "${chosenTriggers[4].id}",
       "angleLabel": "${chosenTriggers[4].labelFr}",
-      "message": "Angle intimiste appliquant l'angle #5...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "88%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `${priceSuggestion}€` : '15€') : 'Gratuit'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Média exclusif PPV') : 'Offert / DM'}",
@@ -582,7 +616,7 @@ Renvoie UNIQUEMENT un objet JSON valide avec cette structure :
       "id": "var-6",
       "angle": "${chosenTriggers[5].id}",
       "angleLabel": "${chosenTriggers[5].labelFr}",
-      "message": "Proposition audacieuse appliquant l'angle #6...",
+      "message": "${sampleMessageExample}",
       "estimatedOpenRate": "95%",
       "suggestedPrice": "${isPaid ? (priceSuggestion ? `${priceSuggestion}€` : '15€') : 'Gratuit'}",
       "mediaNotice": "${isPaid ? (mediaContext || 'Média exclusif PPV') : 'Offert / DM'}",

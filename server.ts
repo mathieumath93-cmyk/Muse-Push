@@ -430,13 +430,22 @@ app.post('/api/generate-push', async (req, res) => {
       try {
         const ai = getAiClient();
         const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-        const noveltyNotice = varietyLevel === 'high'
-          ? `[LIBERTÉ CRÉATIVE TOTALE - DIVERSITÉ & NOUVEAUTÉ MAXIMALE ACTIVE - TEMPÉRATURE ${geminiTemperature}]\nInterdiction formelle de répéter les formulations ou de suivre un schéma d'angles fixe. Donne 6 propositions d'accroches radicalement différentes les unes des autres.`
-          : `[CONSIGNE VARIÉTÉ : ${varietyLevel.toUpperCase()} - LIBERTÉ CRÉATIVE TOTALE - 6 PROPOSITIONS DISSIMILAIRES]`;
+        const isUs = language === 'us';
+        const noveltyNotice = isUs
+          ? (varietyLevel === 'high'
+            ? `[TOTAL CREATIVE FREEDOM - MAXIMUM VARIETY & NOVELTY ACTIVE - TEMPERATURE ${geminiTemperature}]\nStrictly write 100% in natural American English (US). Generate 6 radically dissimilar push propositions.`
+            : `[VARIETY REQUIREMENT: ${varietyLevel.toUpperCase()} - 100% AMERICAN ENGLISH - 6 DISSIMILAR PROPOSITIONS]`)
+          : (varietyLevel === 'high'
+            ? `[LIBERTÉ CRÉATIVE TOTALE - DIVERSITÉ & NOUVEAUTÉ MAXIMALE ACTIVE - TEMPÉRATURE ${geminiTemperature}]\nInterdiction formelle de répéter les formulations ou de suivre un schéma d'angles fixe. Donne 6 propositions d'accroches radicalement différentes les unes des autres.`
+            : `[CONSIGNE VARIÉTÉ : ${varietyLevel.toUpperCase()} - LIBERTÉ CRÉATIVE TOTALE - 6 PROPOSITIONS DISSIMILAIRES]`);
+
+        const promptConsigne = isUs
+          ? `MANDATE: Write all 6 propositions 100% in natural American English (US). ZERO French words allowed.`
+          : `CONSIGNE : Génère 6 propositions totalement libres et imprévisibles, sans angle précis imposé, afin qu'aucune ne se ressemble.`;
 
         const geminiRes = await ai.models.generateContent({
           model: 'gemini-3.8-flash',
-          contents: `${systemPrompt}\n\n${userPrompt}\n\n[SEED FRAÎCHEUR #${nonce}]\n${noveltyNotice}\nCONSIGNE : Génère 6 propositions totalement libres et imprévisibles, sans angle précis imposé, afin qu'aucune ne se ressemble.`,
+          contents: `${systemPrompt}\n\n${userPrompt}\n\n[SEED FRAÎCHEUR #${nonce}]\n${noveltyNotice}\n${promptConsigne}`,
           config: {
             responseMimeType: 'application/json',
             temperature: geminiTemperature

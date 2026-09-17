@@ -116,6 +116,28 @@ export const DEFAULT_WINNING_EXAMPLES: WinningExample[] = [
     openRate: '89%',
     notes: 'Waking up intimate tone, zero filter, natural sleepy glow feeling.',
     text: `morning babe... still in bed with messy hair thinking about you 🤍\n\nmissed having your hands on my waist so i took this right as i woke up... no makeup, totally raw and sweet just for my favorite boy ✨\n\ncome start your day with me 🥰`
+  },
+  {
+    id: 'win-us-3',
+    title: 'US One-Line Direct PPV Punch',
+    platform: 'onlyfans',
+    language: 'us',
+    mood: 'positions_hot',
+    revenueGenerated: '$3,420',
+    openRate: '97%',
+    notes: 'Single punchy line with zero fluff, high curiosity and urgent unlock tension.',
+    text: `did something on camera today that i promised myself i would never post publicly... unlock to see what i did 🫦`
+  },
+  {
+    id: 'win-us-4',
+    title: 'US Afternoon Spontaneous Tease (1-2 Sentences)',
+    platform: 'onlyfans',
+    language: 'us',
+    mood: 'hot',
+    revenueGenerated: '$2,190',
+    openRate: '93%',
+    notes: 'Short, direct, intimate texting style with instant visual trigger.',
+    text: `quick break from my day in sheer lace... tell me what you would do if you walked in on me right now 🫦`
   }
 ];
 
