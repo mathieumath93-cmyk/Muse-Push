@@ -578,20 +578,20 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
             />
           </div>
 
-          {/* Admin Access PIN code configuration */}
+          {/* Admin Access Password configuration */}
           {onSaveAdminPin && (
-            <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-3 text-xs">
+            <div className="pt-2 border-t border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <div>
-                <label className="font-medium text-zinc-200 block">Code PIN Accès Admin</label>
-                <span className="text-[11px] text-zinc-500">Code à 4 chiffres protégeant cet espace et les clés API</span>
+                <label className="font-medium text-zinc-200 block">Mot de passe Accès Admin</label>
+                <span className="text-[11px] text-zinc-500">Mot de passe protégeant cet espace et les clés API</span>
               </div>
               <input
                 type="text"
-                maxLength={6}
+                maxLength={32}
                 value={tempPin}
                 onChange={e => setTempPin(e.target.value)}
-                className="w-24 px-3 py-1.5 rounded-xl bg-black/50 border border-white/10 text-center font-mono font-bold text-amber-300 tracking-wider focus:border-amber-500 focus:outline-hidden text-xs"
-                placeholder="1234"
+                className="w-36 px-3 py-1.5 rounded-xl bg-black/50 border border-white/10 text-center font-mono font-bold text-amber-300 tracking-wider focus:border-amber-500 focus:outline-hidden text-xs"
+                placeholder="Admin2026*"
               />
             </div>
           )}

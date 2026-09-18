@@ -47,9 +47,9 @@ export default function App() {
   });
   const [adminPin, setAdminPin] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('musepush_admin_pin') || '1234';
+      return localStorage.getItem('musepush_admin_pin') || 'Admin2026*';
     }
-    return '1234';
+    return 'Admin2026*';
   });
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
 
