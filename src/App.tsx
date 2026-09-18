@@ -6,6 +6,8 @@ import { VariationsDisplay } from './components/VariationsDisplay';
 import { OpenRouterModal } from './components/OpenRouterModal';
 import { TrainingStudio } from './components/TrainingStudio';
 import { AddModelModal } from './components/AddModelModal';
+import { AnimatedBackground } from './components/AnimatedBackground';
+import { AdminAccessModal } from './components/AdminAccessModal';
 import { INITIAL_MODELS, DEFAULT_WINNING_EXAMPLES } from './data';
 import { executePushGeneration, testOpenRouterConnection, testGroqConnection, testMistralConnection } from './services/aiGenerator';
 import { 
@@ -27,13 +29,55 @@ import {
   GenerationResult,
   WinningExample,
   OpenRouterTestResult,
-  AiProviderId
+  AiProviderId,
+  UserRole
 } from './types';
 import { Sparkles, RefreshCw, Trophy, Zap, AlertCircle } from 'lucide-react';
 
 export default function App() {
   // Navigation tabs: 'generator' or 'training'
   const [activeTab, setActiveTab] = useState<'generator' | 'training'>('generator');
+
+  // User Role Management ('user' vs 'admin')
+  const [userRole, setUserRole] = useState<UserRole>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('musepush_user_role') as UserRole) || 'user';
+    }
+    return 'user';
+  });
+  const [adminPin, setAdminPin] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('musepush_admin_pin') || '1234';
+    }
+    return '1234';
+  });
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
+
+  const handleSaveAdminPin = (newPin: string) => {
+    setAdminPin(newPin);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('musepush_admin_pin', newPin);
+    }
+  };
+
+  const handleToggleRole = () => {
+    if (userRole === 'admin') {
+      setUserRole('user');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('musepush_user_role', 'user');
+      }
+      setActiveTab('generator');
+    } else {
+      setIsAdminModalOpen(true);
+    }
+  };
+
+  const handleAdminSuccess = () => {
+    setUserRole('admin');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('musepush_user_role', 'admin');
+    }
+  };
 
   // Cloud sync status
   const [isCloudSynced, setIsCloudSynced] = useState<boolean>(false);
@@ -541,7 +585,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#08080c] text-zinc-100 selection:bg-rose-500 selection:text-white flex flex-col font-sans">
+    <div className="relative min-h-screen bg-[#08080c] text-zinc-100 selection:bg-rose-500 selection:text-white flex flex-col font-sans overflow-x-hidden">
+      {/* Luxury Animated Background Canvas */}
+      <AnimatedBackground />
+
       {/* Unified Header */}
       <Header
         platform={platform}
@@ -589,10 +636,12 @@ export default function App() {
           else if (activeProvider === 'mistral') handleTestMistral();
           else if (activeProvider === 'openrouter') handleTestOpenRouter();
         }}
+        userRole={userRole}
+        onToggleRole={handleToggleRole}
       />
 
       {/* Main Content Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-5">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-5">
         {/* Real-time Timezone Radar always accessible at the top */}
         <TimeZoneRadar
           selectedZone={config.timeContext.selectedTzZone}
@@ -604,7 +653,7 @@ export default function App() {
           }}
         />
 
-        {/* Tab 1: Clean & Intuitive Push Generator */}
+        {/* Tab 1: Clean & Intuitive Push Generator (Chatter & Admin) */}
         {activeTab === 'generator' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Left side: Single, streamlined configuration card */}
@@ -623,6 +672,7 @@ export default function App() {
                 language={language}
                 onSelectLanguage={handleSelectLanguage}
                 onOpenAddModel={handleOpenAddModel}
+                isAdmin={userRole === 'admin'}
               />
 
               {/* High-visibility Generate Trigger */}
@@ -686,8 +736,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 2: Training Studio (Few-Shot fine-tuning & Playbook) */}
-        {activeTab === 'training' && (
+        {/* Tab 2: Training Studio (Few-Shot fine-tuning & Playbook - Admin only) */}
+        {activeTab === 'training' && userRole === 'admin' && (
           <TrainingStudio
             examples={trainingExamples}
             onAddExample={handleAddTrainingExample}
@@ -738,12 +788,22 @@ export default function App() {
         openRouterStatus={openRouterStatus}
         isTesting={isTestingOpenRouter}
         onTestConnection={handleTestOpenRouter}
+        adminPin={adminPin}
+        onSaveAdminPin={handleSaveAdminPin}
+      />
+
+      {/* Admin Access PIN Modal */}
+      <AdminAccessModal
+        isOpen={isAdminModalOpen}
+        onClose={() => setIsAdminModalOpen(false)}
+        onSuccess={handleAdminSuccess}
+        currentPin={adminPin}
       />
 
       {/* Subtle compact footer */}
-      <footer className="border-t border-white/5 py-3 px-4 text-center text-xs text-zinc-500 bg-[#07070a]">
+      <footer className="relative z-10 border-t border-white/5 py-3 px-4 text-center text-xs text-zinc-500 bg-[#07070a]/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px]">
-          <span>MusePush Studio • Entraînement Few-Shot & Optimisation Mass Messaging (OnlyFans / MYM)</span>
+          <span>MusePush Studio • {userRole === 'admin' ? 'Espace Administration & Configuration Agence' : 'Espace Chatter & Lancement Mass Message'}</span>
           <div className="flex items-center gap-3">
             <span className="text-emerald-400">● Moteur persuasion actif</span>
             <span>Fuseaux FR & US synchronisés</span>

@@ -44,6 +44,7 @@ interface CleanStudioConfigProps {
   language: 'fr' | 'us';
   onSelectLanguage?: (lang: 'fr' | 'us') => void;
   onOpenAddModel: () => void;
+  isAdmin?: boolean;
 }
 
 export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
@@ -59,7 +60,8 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
   onChangeConfig,
   language,
   onSelectLanguage,
-  onOpenAddModel
+  onOpenAddModel,
+  isAdmin = false
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [searchPersona, setSearchPersona] = useState('');
@@ -622,97 +624,158 @@ export const CleanStudioConfig: React.FC<CleanStudioConfigProps> = ({
 
         {/* Selected model active summary & quick actions */}
         {selectedModel && (
-          <div className="mt-2.5 p-3 rounded-xl bg-gradient-to-r from-rose-500/10 via-white/[0.02] to-transparent border border-rose-500/20 text-[11px] space-y-2">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  Voix active : {selectedModel.name}, {selectedModel.age} ans
-                  {selectedModel.location && (
-                    <span className="text-[10px] text-rose-300 font-normal">({selectedModel.location})</span>
+          <div className="mt-2.5 p-3.5 rounded-2xl bg-gradient-to-r from-rose-500/10 via-purple-500/5 to-white/[0.02] border border-rose-500/25 shadow-lg shadow-rose-950/20 text-xs">
+            {/* Header: Identity, Signature Emojis & Language/Admin controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-white/10">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative shrink-0">
+                  <img 
+                    src={selectedModel.avatar} 
+                    alt={selectedModel.name} 
+                    className="w-9 h-9 rounded-xl object-cover border border-rose-400/40 shadow-sm" 
+                  />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#12121c] animate-pulse" />
+                </div>
+                
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold text-white text-sm tracking-tight">{selectedModel.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 text-zinc-300 font-medium">
+                      {selectedModel.age} ans
+                    </span>
+                    {selectedModel.location && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                        {selectedModel.location}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Signature emojis cleanly formatted */}
+                  {selectedModel.favoriteEmojis && selectedModel.favoriteEmojis.length > 0 && (
+                    <div className="flex items-center gap-1 mt-0.5 text-[11px] text-zinc-400">
+                      <span className="text-[10px] text-zinc-500">Signature:</span>
+                      <span className="tracking-wide">
+                        {selectedModel.favoriteEmojis.slice(0, 5).join(' ')}
+                      </span>
+                      {selectedModel.favoriteEmojis.length > 5 && (
+                        <span className="text-[9px] text-zinc-500 font-mono">+{selectedModel.favoriteEmojis.length - 5}</span>
+                      )}
+                    </div>
                   )}
-                </span>
-                <span className="text-zinc-400">({selectedModel.favoriteEmojis?.join(' ')})</span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {onDuplicateModel && (
-                  <button
-                    type="button"
-                    onClick={() => onDuplicateModel(selectedModel)}
-                    className="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-emerald-500/20 text-zinc-200 hover:text-emerald-300 border border-white/5 hover:border-emerald-500/30 transition flex items-center gap-1 text-[10px] font-semibold cursor-pointer"
-                  >
-                    <Copy className="w-2.5 h-2.5 text-emerald-400" />
-                    <span>Dupliquer</span>
-                  </button>
-                )}
-
-                {onEditModel && (
-                  <button
-                    type="button"
-                    onClick={() => onEditModel(selectedModel)}
-                    className="px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white transition flex items-center gap-1 text-[10px] font-semibold cursor-pointer"
-                  >
-                    <Pencil className="w-2.5 h-2.5 text-rose-400" />
-                    <span>Modifier</span>
-                  </button>
-                )}
-
-                {/* Instant Language Switcher for current model */}
+              {/* Action Toolbar: Language Switch & Admin Edit/Duplicate */}
+              <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                {/* Clean Language Switcher (FR / US) */}
                 {onSelectLanguage && (
-                  <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-white/10 text-[10px]">
+                  <div className="flex items-center bg-black/60 p-0.5 rounded-xl border border-white/10 text-[10px]">
                     <button
                       type="button"
                       onClick={() => onSelectLanguage('fr')}
-                      className={`px-1.5 py-0.5 rounded font-bold transition cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer flex items-center gap-1 ${
                         language === 'fr'
-                          ? 'bg-rose-500 text-white shadow-xs'
+                          ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-xs'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      🇫🇷 FR
+                      <span>FR</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onSelectLanguage('us')}
-                      className={`px-1.5 py-0.5 rounded font-bold transition cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer flex items-center gap-1 ${
                         language === 'us'
-                          ? 'bg-indigo-500 text-white shadow-xs'
+                          ? 'bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-xs'
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      🇺🇸 US
+                      <span>US</span>
                     </button>
+                  </div>
+                )}
+
+                {/* Admin-only quick actions or compact edit */}
+                {isAdmin && (
+                  <div className="flex items-center gap-1">
+                    {onDuplicateModel && (
+                      <button
+                        type="button"
+                        onClick={() => onDuplicateModel(selectedModel)}
+                        className="px-2 py-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-zinc-300 hover:text-emerald-300 border border-white/10 hover:border-emerald-500/30 transition flex items-center gap-1 text-[10px] font-semibold cursor-pointer"
+                        title="Dupliquer le profil"
+                      >
+                        <Copy className="w-3 h-3 text-emerald-400" />
+                        <span className="hidden sm:inline">Dupliquer</span>
+                      </button>
+                    )}
+
+                    {onEditModel && (
+                      <button
+                        type="button"
+                        onClick={() => onEditModel(selectedModel)}
+                        className="px-2 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 border border-rose-500/30 transition flex items-center gap-1 text-[10px] font-semibold cursor-pointer"
+                        title="Modifier le profil"
+                      >
+                        <Pencil className="w-3 h-3 text-rose-400" />
+                        <span className="hidden sm:inline">Modifier</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-zinc-300 pt-1.5 border-t border-white/5">
-              <div>
-                <span className="text-zinc-500 font-medium">Vie réelle : </span>
-                <span>{selectedModel.realLifeOccupation || 'Créatrice & passionnée de mode'}</span>
+            {/* Persona Details Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-zinc-300 pt-2.5 text-[11px]">
+              <div className="p-2 rounded-xl bg-black/30 border border-white/5">
+                <span className="text-zinc-400 font-semibold block text-[10px] uppercase tracking-wider mb-0.5">
+                  Vie réelle & Métier
+                </span>
+                <span className="text-zinc-200 font-medium break-words">
+                  {selectedModel.realLifeOccupation || 'Créatrice de contenu & lifestyle'}
+                </span>
               </div>
-              <div>
-                <span className="text-rose-400/90 font-medium">🏡 Cadre maison : </span>
-                <span className="text-zinc-300 truncate">{selectedModel.homeHabits || 'Chambre, miroir, lit et moments cosy'}</span>
+
+              <div className="p-2 rounded-xl bg-black/30 border border-white/5">
+                <span className="text-rose-400 font-semibold block text-[10px] uppercase tracking-wider mb-0.5">
+                  Cadre maison & Ambiance
+                </span>
+                <span className="text-zinc-200 font-medium break-words">
+                  {selectedModel.homeHabits || 'Chambre, miroir, lit et moments cosy'}
+                </span>
               </div>
+
               {selectedModel.objective && (
-                <div className="sm:col-span-2">
-                  <span className="text-emerald-400/90 font-medium">🎯 Objectif : </span>
-                  <span className="text-zinc-300">{selectedModel.objective}</span>
+                <div className="p-2 rounded-xl bg-black/30 border border-white/5 sm:col-span-2">
+                  <span className="text-emerald-400 font-semibold block text-[10px] uppercase tracking-wider mb-0.5">
+                    Objectif de conversion
+                  </span>
+                  <span className="text-zinc-200 font-medium break-words">
+                    {selectedModel.objective}
+                  </span>
                 </div>
               )}
+
               {selectedModel.tone && (
-                <div>
-                  <span className="text-amber-400/90 font-medium">🎙️ Ton : </span>
-                  <span className="text-zinc-300">{selectedModel.tone}</span>
+                <div className="p-2 rounded-xl bg-black/30 border border-white/5">
+                  <span className="text-amber-400 font-semibold block text-[10px] uppercase tracking-wider mb-0.5">
+                    Tonalité & Style
+                  </span>
+                  <span className="text-zinc-200 font-medium break-words">
+                    {selectedModel.tone}
+                  </span>
                 </div>
               )}
+
               {selectedModel.themes && selectedModel.themes.length > 0 && (
-                <div>
-                  <span className="text-purple-400/90 font-medium">🎨 Thèmes : </span>
-                  <span className="text-zinc-300 truncate">{selectedModel.themes.join(', ')}</span>
+                <div className="p-2 rounded-xl bg-black/30 border border-white/5">
+                  <span className="text-purple-400 font-semibold block text-[10px] uppercase tracking-wider mb-0.5">
+                    Thèmes familiers
+                  </span>
+                  <span className="text-zinc-200 font-medium break-words">
+                    {selectedModel.themes.join(', ')}
+                  </span>
                 </div>
               )}
             </div>

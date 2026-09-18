@@ -50,6 +50,8 @@ interface OpenRouterModalProps {
   openRouterStatus?: OpenRouterTestResult | null;
   isTesting?: boolean;
   onTestConnection?: (keyToTest?: string) => Promise<void> | void;
+  adminPin?: string;
+  onSaveAdminPin?: (pin: string) => void;
 }
 
 export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
@@ -82,12 +84,15 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
   onSetTemperature,
   openRouterStatus,
   isTesting = false,
-  onTestConnection
+  onTestConnection,
+  adminPin = '1234',
+  onSaveAdminPin
 }) => {
   const [currentTab, setCurrentTab] = useState<AiProviderId>(activeProvider || 'groq');
   const [tempGroqKey, setTempGroqKey] = useState(groqApiKey);
   const [tempMistralKey, setTempMistralKey] = useState(mistralApiKey);
   const [tempOrKey, setTempOrKey] = useState(apiKey);
+  const [tempPin, setTempPin] = useState(adminPin);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   if (!isOpen) return null;
@@ -98,6 +103,9 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
     onSaveGroqApiKey(tempGroqKey.trim());
     onSaveMistralApiKey(tempMistralKey.trim());
     onSaveApiKey(tempOrKey.trim());
+    if (onSaveAdminPin && tempPin.trim()) {
+      onSaveAdminPin(tempPin.trim());
+    }
     setSavedSuccess(true);
     setTimeout(() => {
       setSavedSuccess(false);
@@ -569,6 +577,24 @@ export const OpenRouterModal: React.FC<OpenRouterModalProps> = ({
               className="w-full accent-rose-500 cursor-pointer"
             />
           </div>
+
+          {/* Admin Access PIN code configuration */}
+          {onSaveAdminPin && (
+            <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-3 text-xs">
+              <div>
+                <label className="font-medium text-zinc-200 block">Code PIN Accès Admin</label>
+                <span className="text-[11px] text-zinc-500">Code à 4 chiffres protégeant cet espace et les clés API</span>
+              </div>
+              <input
+                type="text"
+                maxLength={6}
+                value={tempPin}
+                onChange={e => setTempPin(e.target.value)}
+                className="w-24 px-3 py-1.5 rounded-xl bg-black/50 border border-white/10 text-center font-mono font-bold text-amber-300 tracking-wider focus:border-amber-500 focus:outline-hidden text-xs"
+                placeholder="1234"
+              />
+            </div>
+          )}
 
           {/* Footer Actions */}
           <div className="flex items-center justify-between pt-3 border-t border-white/5 shrink-0">

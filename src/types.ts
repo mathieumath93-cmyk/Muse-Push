@@ -95,6 +95,7 @@ export interface GeneratedVariation {
 }
 
 export type AiProviderId = 'groq' | 'mistral' | 'openrouter' | 'studio';
+export type UserRole = 'user' | 'admin';
 
 export interface ProviderStatusInfo {
   provider: AiProviderId;
