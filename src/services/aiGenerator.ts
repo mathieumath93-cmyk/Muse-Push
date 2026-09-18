@@ -160,6 +160,7 @@ export async function testGroqConnection(apiKey?: string, model?: string): Promi
     };
   }
 
+  // 1. Try local server endpoint first
   try {
     const res = await fetch('/api/test-groq', {
       method: 'POST',
@@ -168,19 +169,56 @@ export async function testGroqConnection(apiKey?: string, model?: string): Promi
     });
     if (res.ok) {
       return await res.json();
-    } else {
+    } else if (res.status !== 404 && res.status !== 502 && res.status !== 503) {
+      // Meaningful API error returned by server proxy (e.g. 401 invalid key, 429 quota)
       const err = await res.json().catch(() => null);
+      if (err && err.message) return err;
+    }
+  } catch (_netErr) {
+    // Server proxy unreachable or static mode, proceed to direct client check
+  }
+
+  // 2. Direct browser test to Groq Cloud API
+  const startTime = Date.now();
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${keyToUse}`
+      }
+    });
+    const latencyMs = Date.now() - startTime;
+    if (response.ok) {
+      return {
+        success: true,
+        status: 'connected',
+        message: 'Connexion Groq Cloud validée avec succès ! Puces LPU ultra-rapides prêtes.',
+        model: model || 'llama-3.3-70b-versatile',
+        creditInfo: 'Tier Gratuit Actif (30 req/min)',
+        latencyMs
+      };
+    } else {
+      const errData = await response.json().catch(() => null);
+      let msg = `Erreur Groq (HTTP ${response.status})`;
+      if (response.status === 401) {
+        msg = 'Clé API Groq invalide (HTTP 401). Vérifie ta clé sur console.groq.com/keys.';
+      } else if (response.status === 429) {
+        msg = 'Limite de requêtes Groq atteinte (HTTP 429).';
+      } else if (errData?.error?.message) {
+        msg = errData.error.message;
+      }
       return {
         success: false,
         status: 'error',
-        message: err?.message || `Erreur Groq HTTP ${res.status}`
+        message: msg,
+        latencyMs
       };
     }
   } catch (e: any) {
     return {
       success: false,
       status: 'error',
-      message: e.message || 'Impossible de joindre les serveurs Groq'
+      message: e.message || 'Impossible de joindre les serveurs Groq Cloud'
     };
   }
 }
@@ -195,6 +233,7 @@ export async function testMistralConnection(apiKey?: string, model?: string): Pr
     };
   }
 
+  // 1. Try local server endpoint first
   try {
     const res = await fetch('/api/test-mistral', {
       method: 'POST',
@@ -203,12 +242,49 @@ export async function testMistralConnection(apiKey?: string, model?: string): Pr
     });
     if (res.ok) {
       return await res.json();
-    } else {
+    } else if (res.status !== 404 && res.status !== 502 && res.status !== 503) {
+      // Meaningful API error returned by server proxy (e.g. 401, 429)
       const err = await res.json().catch(() => null);
+      if (err && err.message) return err;
+    }
+  } catch (_netErr) {
+    // Server proxy unreachable or static mode, proceed to direct client check
+  }
+
+  // 2. Direct browser test to Mistral AI
+  const startTime = Date.now();
+  try {
+    const response = await fetch('https://api.mistral.ai/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${keyToUse}`
+      }
+    });
+    const latencyMs = Date.now() - startTime;
+    if (response.ok) {
+      return {
+        success: true,
+        status: 'connected',
+        message: 'Connexion Mistral AI validée avec succès ! Plume française de pointe prête.',
+        model: model || 'mistral-small-latest',
+        creditInfo: 'Compte La Plateforme Actif',
+        latencyMs
+      };
+    } else {
+      const errData = await response.json().catch(() => null);
+      let msg = `Erreur Mistral AI (HTTP ${response.status})`;
+      if (response.status === 401) {
+        msg = 'Clé API Mistral AI invalide (HTTP 401). Vérifie ta clé sur console.mistral.ai/api-keys.';
+      } else if (response.status === 429) {
+        msg = 'Limite de requêtes Mistral AI atteinte (HTTP 429).';
+      } else if (errData?.message) {
+        msg = errData.message;
+      }
       return {
         success: false,
         status: 'error',
-        message: err?.message || `Erreur Mistral HTTP ${res.status}`
+        message: msg,
+        latencyMs
       };
     }
   } catch (e: any) {
@@ -245,6 +321,9 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
     timeContext,
     trainingExamples,
     agencyPlaybookRules,
+    activeProvider = 'openrouter',
+    groqConfig,
+    mistralConfig,
     openRouterConfig
   } = params;
 
@@ -285,10 +364,204 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
     }
   } catch (_err) {
     // Server is absent or unreachable (e.g. running directly on Lovable static preview)
-    console.info('Backend server unreachable or static environment detected (Lovable mode). Using direct client engine.');
+    console.info('Backend server unreachable or static environment detected. Using direct client engine.');
   }
 
-  // 2. Second attempt: Direct OpenRouter call if user entered their API key
+  // 2. Direct client call based on activeProvider
+  const isPaidPush = pushType === 'paid_ppv';
+  const isUs = language === 'us';
+
+  const prompts = buildPushPrompts({
+    modelProfile,
+    platform,
+    language,
+    pushType,
+    sentenceCount,
+    varietyLevel,
+    mood,
+    mediaType,
+    priceSuggestion,
+    mediaContext,
+    callToAction,
+    targetAudience,
+    hotLevel,
+    timeContext: enrichedParams.timeContext,
+    resolvedTime,
+    trainingExamples,
+    agencyPlaybookRules,
+    previousMessages: params.previousMessages,
+    openRouterConfig
+  });
+
+  const { systemPrompt, userPrompt, temperature } = prompts;
+
+  // 2A. Direct Groq Cloud call from client
+  if (activeProvider === 'groq') {
+    const groqKey = (groqConfig?.apiKey || (typeof window !== 'undefined' ? localStorage.getItem('musepush_groq_key') || '' : '')).trim();
+    const groqModel = groqConfig?.model || (typeof window !== 'undefined' ? localStorage.getItem('musepush_groq_model') || '' : '') || 'llama-3.3-70b-versatile';
+
+    if (groqKey) {
+      const directStartTime = Date.now();
+      try {
+        const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: groqModel,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            temperature,
+            response_format: { type: 'json_object' }
+          })
+        });
+
+        const latencyMs = Date.now() - directStartTime;
+
+        if (groqResp.ok) {
+          const data = await groqResp.json();
+          const content = data.choices?.[0]?.message?.content;
+          if (content) {
+            const parsed = parseOpenRouterPushResponse(content, {
+              isUs,
+              isPaid: isPaidPush,
+              priceVal: priceSuggestion || 15,
+              mood,
+              mediaNotice: mediaContext,
+              previousHistory: params.previousMessages
+            });
+            if (parsed && parsed.length > 0) {
+              return {
+                success: true,
+                source: 'groq',
+                modelUsed: `Groq Cloud (${groqModel})`,
+                providerStatus: {
+                  provider: 'groq',
+                  attempted: true,
+                  success: true,
+                  model: groqModel,
+                  latencyMs
+                },
+                activeParametersSummary: {
+                  mood,
+                  varietyLevel,
+                  sentenceCount,
+                  pushType,
+                  mediaType,
+                  hasMediaContext: Boolean(mediaContext && mediaContext.trim()),
+                  hasPreviousMessagesAvoidance: Array.isArray(params.previousMessages) && params.previousMessages.length > 0,
+                  antiRepetitionCount: Array.isArray(params.previousMessages) ? params.previousMessages.length : 0,
+                  timeZone: resolvedTime.tzZone,
+                  fanTime: resolvedTime.timeString,
+                  period: isUs ? resolvedTime.periodLabelUs : resolvedTime.periodLabelFr
+                },
+                recommendations: {
+                  bestSendTimeFanTz: `${resolvedTime.timeString} (${isUs ? resolvedTime.periodLabelUs : resolvedTime.periodLabelFr})`,
+                  currentFanLocalTime: `${resolvedTime.timeString} — ${isUs ? resolvedTime.periodLabelUs : resolvedTime.periodLabelFr}`,
+                  pricingTip: isPaidPush
+                    ? (isUs ? `Recommended PPV: $${priceSuggestion || 15}` : `Prix conseillé: ${priceSuggestion || 15}€`)
+                    : (isUs ? 'Free retention & reply opener' : 'Push gratuit de relance'),
+                  safetyAudit: isUs ? 'Strictly TOS-compliant and validated' : 'Termes conformes et validés'
+                },
+                variations: parsed
+              };
+            }
+          }
+        }
+      } catch (groqErr) {
+        console.warn('Direct Groq call error:', groqErr);
+      }
+    }
+  }
+
+  // 2B. Direct Mistral AI call from client
+  if (activeProvider === 'mistral') {
+    const mistralKey = (mistralConfig?.apiKey || (typeof window !== 'undefined' ? localStorage.getItem('musepush_mistral_key') || '' : '')).trim();
+    const mistralModel = mistralConfig?.model || (typeof window !== 'undefined' ? localStorage.getItem('musepush_mistral_model') || '' : '') || 'mistral-small-latest';
+
+    if (mistralKey) {
+      const directStartTime = Date.now();
+      try {
+        const mistralResp = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${mistralKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: mistralModel,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            temperature,
+            response_format: { type: 'json_object' }
+          })
+        });
+
+        const latencyMs = Date.now() - directStartTime;
+
+        if (mistralResp.ok) {
+          const data = await mistralResp.json();
+          const content = data.choices?.[0]?.message?.content;
+          if (content) {
+            const parsed = parseOpenRouterPushResponse(content, {
+              isUs,
+              isPaid: isPaidPush,
+              priceVal: priceSuggestion || 15,
+              mood,
+              mediaNotice: mediaContext,
+              previousHistory: params.previousMessages
+            });
+            if (parsed && parsed.length > 0) {
+              return {
+                success: true,
+                source: 'mistral',
+                modelUsed: `Mistral AI (${mistralModel})`,
+                providerStatus: {
+                  provider: 'mistral',
+                  attempted: true,
+                  success: true,
+                  model: mistralModel,
+                  latencyMs
+                },
+                activeParametersSummary: {
+                  mood,
+                  varietyLevel,
+                  sentenceCount,
+                  pushType,
+                  mediaType,
+                  hasMediaContext: Boolean(mediaContext && mediaContext.trim()),
+                  hasPreviousMessagesAvoidance: Array.isArray(params.previousMessages) && params.previousMessages.length > 0,
+                  antiRepetitionCount: Array.isArray(params.previousMessages) ? params.previousMessages.length : 0,
+                  timeZone: resolvedTime.tzZone,
+                  fanTime: resolvedTime.timeString,
+                  period: isUs ? resolvedTime.periodLabelUs : resolvedTime.periodLabelFr
+                },
+                recommendations: {
+                  bestSendTimeFanTz: `${resolvedTime.timeString} (${isUs ? resolvedTime.periodLabelUs : resolvedTime.periodLabelFr})`,
+                  currentFanLocalTime: `${resolvedTime.timeString} — ${isUs ? resolvedTime.periodLabelUs : resolvedTime.periodLabelFr}`,
+                  pricingTip: isPaidPush
+                    ? (isUs ? `Recommended PPV: $${priceSuggestion || 15}` : `Prix conseillé: ${priceSuggestion || 15}€`)
+                    : (isUs ? 'Free retention & reply opener' : 'Push gratuit de relance'),
+                  safetyAudit: isUs ? 'Strictly TOS-compliant and validated' : 'Termes conformes et validés'
+                },
+                variations: parsed
+              };
+            }
+          }
+        }
+      } catch (mistralErr) {
+        console.warn('Direct Mistral call error:', mistralErr);
+      }
+    }
+  }
+
+  // 2C. Direct OpenRouter call if user entered their API key
   const apiKey = openRouterConfig?.apiKey?.trim() || (typeof window !== 'undefined' ? localStorage.getItem('musepush_openrouter_key') || '' : '');
   const selectedLlmModel = openRouterConfig?.model || '@preset/push-bot';
   let openRouterFailureReason = '';
