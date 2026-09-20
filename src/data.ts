@@ -314,9 +314,7 @@ export const OPENROUTER_MODELS = [
 
 export const GROQ_MODELS = [
   { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile (Ultra-Rapide & Puissant)', provider: 'Meta via Groq', badge: 'Recommandé Gratuit' },
-  { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B (Rapide & Fluide)', provider: 'Mistral via Groq', badge: '100% Gratuit' },
-  { id: 'gemma2-9b-it', name: 'Gemma 2 9B IT (Direct & Léger)', provider: 'Google via Groq', badge: '100% Gratuit' },
-  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant (Ultra-Flash)', provider: 'Meta via Groq', badge: 'Flash' },
+  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant (Ultra-Flash & Stable)', provider: 'Meta via Groq', badge: 'Flash' },
 ];
 
 export const MISTRAL_MODELS = [

@@ -18,6 +18,7 @@ interface DynamicEngineParams {
   modelProfile?: ModelProfile;
   language: Language;
   mood: MoodCategory;
+  mediaType?: string;
   mediaContext?: string;
   priceSuggestion?: number;
   platform: Platform;
@@ -1217,6 +1218,149 @@ const GENERAL_HOT_VIBES: CreativeVibeGenerator[] = [
   }
 ];
 
+// =========================================================================
+// POOL SPÉCIFIQUE : MESSAGES TEXTE PUR (SANS PHOTO / SANS MÉDIA)
+// Conversations naturelles, check-ins intimes, questions complices, pensées spontanées
+// =========================================================================
+const TEXT_ONLY_VIBES: CreativeVibeGenerator[] = [
+  {
+    id: 'text_checkin_journee',
+    labelFr: 'Prise de nouvelles après journée',
+    labelUs: 'End-of-Day Check-in',
+    noteFr: 'Message doux et complice pour prendre de ses nouvelles.',
+    noteUs: 'Sweet and genuine conversational check-in.',
+    generateFr: ({ em1 }) => pickRandom([
+      `je viens de rentrer d'une journée à 100 à l'heure... j'espère que la tienne a été plus douce 🤍 comment tu te sens ce soir ?`,
+      `enfin un moment de calme pour respirer... une petite pensée pour toi, ta journée s'est bien passée ? ${em1}`,
+      `je me posais sur mon canapé et ton nom m'est venu en tête... t'as passé une bonne journée ? 🤍`
+    ]),
+    generateUs: ({ em1 }) => pickRandom([
+      `finally got back home from a crazy busy day... hope yours was much gentler on you 🤍 how are you feeling tonight?`,
+      `finally a quiet moment to breathe... had a sudden thought of you, how did your day treat you? ${em1}`,
+      `curled up on my couch and your name crossed my mind... did you have a good day today? 🤍`
+    ])
+  },
+  {
+    id: 'text_pensee_spontanee',
+    labelFr: 'Pensée spontanée & taquine',
+    labelUs: 'Spontaneous Playful Thought',
+    noteFr: 'Message spontané sans attente commerciale, déclenchant une envie de répondre.',
+    noteUs: 'Spontaneous, no-strings-attached playful tease.',
+    generateFr: ({ em1 }) => pickRandom([
+      `avoue sans tricher : tu t'attendais pas du tout à voir mon nom s'afficher sur ton écran là maintenant 👀`,
+      `je sais pas pourquoi mais j'avais envie de t'envoyer un petit message impromptu aujourd'hui... t'es occupé ? ${em1}`,
+      `juste un petit coucou spontané pour égayer ta journée... tu penses à moi parfois ou c'est que moi ? 🫦`
+    ]),
+    generateUs: ({ em1 }) => pickRandom([
+      `be completely honest: you definitely weren't expecting my name to pop up on your screen right now 👀`,
+      `not sure why, but I just felt like dropping into your inbox unexpectedly today... are you busy? ${em1}`,
+      `just a random little hello to brighten your day... do I ever cross your mind, or is it just one-way? 🫦`
+    ])
+  },
+  {
+    id: 'text_question_curieuse',
+    labelFr: 'Question indiscrète / complice',
+    labelUs: 'Curious Question',
+    noteFr: 'Pose une question originale qui stimule une réponse immédiate.',
+    noteUs: 'Asks an intriguing, conversational question that begs a reply.',
+    generateFr: ({ em1 }) => pickRandom([
+      `petite question indiscrète par curiosité... t'es plutôt du genre oiseau de nuit ou lève-tôt le matin ? 🌙`,
+      `dilemme express : si tu pouvais te téléporter n'importe où ce soir, tu m'emmènerais où ? ${em1}`,
+      `question du jour : quel est le truc le plus fou que t'aies envie de faire cette semaine ? 🫦`
+    ]),
+    generateUs: ({ em1 }) => pickRandom([
+      `curious question for you... are you more of a late-night thinker or a rise-and-shine early bird? 🌙`,
+      `quick dilemma: if you could teleport anywhere tonight, where are you taking me? ${em1}`,
+      `random question: what's one thing you really wish you could be doing right now instead of what you're doing? 🫦`
+    ])
+  },
+  {
+    id: 'text_confidences_flemme',
+    labelFr: 'Confidence détente & flemme',
+    labelUs: 'Cozy & Honest Mood',
+    noteFr: 'Authenticité désarmante sur son humeur du jour.',
+    noteUs: 'Disarming authenticity about a cozy, lazy mood.',
+    generateFr: ({ em1 }) => pickRandom([
+      `honnêtement j'ai une flemme phénoménale aujourd'hui... s'il te plaît dis-moi que je suis pas la seule dans ce cas 🙈`,
+      `zéro motivation aujourd'hui, j'ai juste envie de rester sous ma couette avec un bon thé... tu ferais quoi à ma place ? 🤍`,
+      `journée off pour moi, en pyjama sans aucune culpabilité... et toi c'est quoi le programme ? ${em1}`
+    ]),
+    generateUs: ({ em1 }) => pickRandom([
+      `honestly having the biggest lazy streak today... please tell me I'm not the only one doing absolutely nothing 🙈`,
+      `zero motivation today, just living under my blanket with hot tea... what would you do in my place? 🤍`,
+      `lazy day mode unlocked, no makeup, oversized shirt... what's your plan for today? ${em1}`
+    ])
+  },
+  {
+    id: 'text_petit_debat',
+    labelFr: 'Mini débat complice',
+    labelUs: 'Playful Debate',
+    noteFr: 'Lance un petit débat léger qui crée du lien.',
+    noteUs: 'Sparks a light, endearing debate.',
+    generateFr: ({ em1 }) => pickRandom([
+      `j'ai besoin d'un avis d'expert masculin : team soirées calmes à deux ou team sorties imprévues ? Tranche pour moi 🤍`,
+      `débat sérieux du jour : est-ce que c'est moi qui suis trop gourmande ou le chocolat le soir c'est indispensable ? 🙈`,
+      `dis-moi la vérité : c'est quoi le premier truc que tu regardes chez une fille ? J'ai envie de savoir ${em1}`
+    ]),
+    generateUs: ({ em1 }) => pickRandom([
+      `I need a guy's honest opinion: team cozy night in together, or spontaneous night out? Settle this for me 🤍`,
+      `serious debate of the day: am I way too sweet-toothed, or is late-night chocolate an absolute necessity? 🙈`,
+      `truth time: what's the very first thing you notice about a girl? Really curious to hear your answer ${em1}`
+    ])
+  },
+  {
+    id: 'text_ambiance_intime',
+    labelFr: 'Murmure intime du soir',
+    labelUs: 'Late Night Intimate Whisper',
+    noteFr: 'Message textuel doux et feutré pour la fin de soirée.',
+    noteUs: 'Soft, sensual text whisper for late evening connection.',
+    generateFr: ({ em1 }) => pickRandom([
+      `lumières tamisées dans ma chambre, je repensais à nos échanges... j'avais juste envie d'un petit mot doux pour toi ce soir 🤍`,
+      `c'est toujours tard le soir que les meilleures pensées arrivent... j'espère que tu dors bien ou que tu penses un peu à moi 🌙`,
+      `juste un petit mot avant d'éteindre la lumière... passe une douce nuit 🤍`
+    ]),
+    generateUs: ({ em1 }) => pickRandom([
+      `lights dimmed in my room, just thinking back on our conversations... wanted to send a soft thought your way tonight 🤍`,
+      `it's always late at night when the sweetest thoughts kick in... hope you're having a restful night 🌙`,
+      `just a quiet little text before turning the lights off... sweet dreams tonight 🤍`
+    ])
+  },
+  {
+    id: 'text_anecdote_journee',
+    labelFr: 'Anecdote spontanée',
+    labelUs: 'Spontaneous Anecdote',
+    noteFr: 'Partage d\'un petit fait du quotidien pour créer de la proximité.',
+    noteUs: 'Sharing a casual everyday moment to build intimacy.',
+    generateFr: ({ em1 }) => pickRandom([
+      `il vient de m'arriver un truc tellement bête que j'ai rigolé toute seule... fallait que je te le partage 🙈`,
+      `j'écoutais une musique qui m'a fait penser à toi tout à l'heure... t'écoutes quoi en ce moment ? ${em1}`,
+      `j'ai passé ma matinée à hésiter sur ma tenue... si t'avais été là tu m'aurais conseillé quoi ? 🤍`
+    ]),
+    generateUs: ({ em1 }) => pickRandom([
+      `something so clumsy just happened to me that I laughed out loud alone... had to share the embarrassment with you 🙈`,
+      `heard a song earlier that randomly reminded me of you... what are you listening to these days? ${em1}`,
+      `spent twenty minutes staring at my wardrobe completely indecisive... what would you have picked for me? 🤍`
+    ])
+  },
+  {
+    id: 'text_compliment_direct',
+    labelFr: 'Clin d\'œil sincère',
+    labelUs: 'Genuine Compliment',
+    noteFr: 'Valorisation du fan pour renforcer la fidélité.',
+    noteUs: 'Warm appreciation that boosts connection and loyalty.',
+    generateFr: ({ em1 }) => pickRandom([
+      `je voulais juste te dire que j'apprécie vraiment le fait que tu sois là et nos petits échanges... ça me fait toujours sourire 🤍`,
+      `t'as toujours le mot pour me faire sourire ici, je voulais te le dire simplement aujourd'hui ✨`,
+      `merci d'être toujours aussi bienveillant avec moi... j'espère que tout se passe bien de ton côté 🤍`
+    ]),
+    generateUs: ({ em1 }) => pickRandom([
+      `just wanted to say I genuinely appreciate your presence and our conversations here... always puts a smile on my face 🤍`,
+      `you always know how to make me smile here, just wanted to let you know that today ✨`,
+      `thank you for always being so kind with me... really hope everything is going great on your end 🤍`
+    ])
+  }
+];
+
 // Helper to select the pool corresponding to the user's selected mood
 function getVibesForMood(mood: MoodCategory, period: TimeOfDayPeriod = 'afternoon'): CreativeVibeGenerator[] {
   switch (mood) {
@@ -1311,6 +1455,7 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
     modelProfile,
     language = 'fr',
     mood = 'hot',
+    mediaType = 'photo_set',
     mediaContext,
     priceSuggestion = 15,
     pushType = 'paid_ppv',
@@ -1347,20 +1492,24 @@ export function generateDynamicPushVariations(params: DynamicEngineParams): {
   const locNoteUs = location ? `here in ${location}` : 'back home';
 
   // 1. Get the pool specifically aligned with the selected VIBE & CIRCONSTANCE, adjusted for TIME OF DAY
-  const moodPool = getVibesForMood(mood, period);
-
-  // Guarantee at least 6 unique vibes by pulling from secondary compatible pools if necessary
-  let candidateVibes = [...moodPool];
-  if (candidateVibes.length < 6) {
-    const backupPool = period === 'morning'
-      ? [...POSITIONS_VIBES, ...BODY_VIBES, ...DIRTY_TALK_VIBES, ...MORNING_VIBES]
-      : (period === 'lunch' || period === 'afternoon'
-        ? [...AFTERNOON_VIBES, ...POSITIONS_VIBES, ...BODY_VIBES, ...DIRTY_TALK_VIBES, ...MIDDAY_VIBES]
-        : [...POSITIONS_VIBES, ...BODY_VIBES, ...DIRTY_TALK_VIBES, ...LATE_NIGHT_VIBES]);
-    for (const b of backupPool) {
-      if (!candidateVibes.some(c => c.id === b.id)) {
-        candidateVibes.push(b);
-        if (candidateVibes.length >= 6) break;
+  // When mediaType is 'none', strictly prioritize text-only conversation vibes (no photo/video mentions)
+  let candidateVibes: CreativeVibeGenerator[];
+  if (mediaType === 'none') {
+    candidateVibes = [...TEXT_ONLY_VIBES];
+  } else {
+    const moodPool = getVibesForMood(mood, period);
+    candidateVibes = [...moodPool];
+    if (candidateVibes.length < 6) {
+      const backupPool = period === 'morning'
+        ? [...POSITIONS_VIBES, ...BODY_VIBES, ...DIRTY_TALK_VIBES, ...MORNING_VIBES]
+        : (period === 'lunch' || period === 'afternoon'
+          ? [...AFTERNOON_VIBES, ...POSITIONS_VIBES, ...BODY_VIBES, ...DIRTY_TALK_VIBES, ...MIDDAY_VIBES]
+          : [...POSITIONS_VIBES, ...BODY_VIBES, ...DIRTY_TALK_VIBES, ...LATE_NIGHT_VIBES]);
+      for (const b of backupPool) {
+        if (!candidateVibes.some(c => c.id === b.id)) {
+          candidateVibes.push(b);
+          if (candidateVibes.length >= 6) break;
+        }
       }
     }
   }

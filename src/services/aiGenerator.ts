@@ -349,6 +349,7 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
   };
 
   // 1. First attempt: call local server API (/api/generate-push)
+  let serverFallbackResult: GenerationResult | null = null;
   try {
     const serverResponse = await fetch('/api/generate-push', {
       method: 'POST',
@@ -359,7 +360,12 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
     if (serverResponse.ok) {
       const data = await serverResponse.json();
       if (data && data.success) {
-        return data as GenerationResult;
+        // If the server actually used the requested provider (or user selected studio), return it
+        if (data.source !== 'fallback_engine' || activeProvider === 'studio') {
+          return data as GenerationResult;
+        }
+        // Save server fallback result in case direct client call also fails
+        serverFallbackResult = data as GenerationResult;
       }
     }
   } catch (_err) {
@@ -805,11 +811,16 @@ export async function executePushGeneration(params: GeneratePushParams): Promise
     }
   }
 
+  if (serverFallbackResult) {
+    return serverFallbackResult;
+  }
+
   // 3. Third step: High-fidelity dynamic variations (regenerates brand new, fresh variations on every click)
   const dynamicResult = generateDynamicPushVariations({
     modelProfile,
     language,
     mood,
+    mediaType,
     mediaContext,
     priceSuggestion: priceSuggestion || 15,
     platform,

@@ -339,18 +339,36 @@ export function buildPushPrompts(params: BuildPushPromptsParams): {
 - INTERDICTION FORMELLE d'évoquer un déblocage, un achat ou un prix ! C'est un message offert ou une pensée spontanée.`;
   }
 
+  // Media type & text-only constraint (vital for simple text messages without photos)
+  let mediaTypeDirective = '';
+  if (mediaType === 'none') {
+    mediaTypeDirective = isUs
+      ? `\nCRITICAL FORMAT CONSTRAINT: 100% TEXT-ONLY MESSAGE (NO PHOTO, NO VIDEO, ZERO MEDIA ATTACHED).
+This is a SIMPLE, AUTHENTIC TEXT-ONLY MESSAGE for casual connection, check-in, or intimate discussion.
+STRICT FORBIDDEN RULES:
+- ABSOLUTELY FORBIDDEN to mention photos, videos, clips, tapes, cameras, angles, seeing media, trying on clothes/lingerie in front of mirrors, or saying "look", "tap", "unlock", "below".
+- ABSOLUTELY FORBIDDEN to sound like a media preview or teaser.
+- The text MUST be a natural, conversational SMS (e.g. asking how his day went, sharing a cute spontaneous thought, cozy check-in, sweet or flirty question).`
+      : `\nCONTRAINTE STRICTE DE FORMAT : MESSAGE 100% TEXTE SEUL (SANS PHOTO, SANS VIDÉO, ZÉRO MÉDIA JOINT).
+Ce mass message est un MESSAGE TEXTE SIMPLE de relation, d'humeur ou de prise de nouvelles.
+RÈGLES STRICTES D'INTERDICTION :
+- INTERDICTION FORMELLE de parler de photos, vidéos, clips, clichés, caméra, cadrage, essayages de lingerie devant le miroir, ou de dire "regarde", "clique", "débloque", "en dessous".
+- INTERDICTION FORMELLE de donner l'impression qu'un média visuel est joint.
+- Le message DOIT être un vrai SMS naturel et spontané (ex: prise de nouvelles décontractée après sa journée, pensée intime spontanée, clin d'œil complice, humeur du jour, question amicale ou taquine).`;
+  }
+
   // Media context anchor
   let mediaContextDirective = '';
   if (mediaContext && mediaContext.trim().length > 3) {
     mediaContextDirective = isUs
-      ? `\nCRITICAL MEDIA CONTEXT PROVIDED BY CREATOR (ABSOLUTE PRIORITY):
+      ? `\nCRITICAL CONTEXT PROVIDED BY CREATOR:
 "${mediaContext.trim()}"
--> MANDATORY: Every proposition MUST directly evoke and center on this exact scene, action, or setting!
--> STRICT FORBIDDEN RULE: NEVER copy-paste the raw description text as the beginning of the message! NEVER make multiple propositions start with the same words! Each proposition must address a different sensory angle of the scene (e.g. one on the lighting/atmosphere, one on a provocative question, one on a spontaneous confession, one on what the camera caught), using 100% unique opening words!`
-      : `\nCONTEXTE PRÉCIS DU MÉDIA FOURNI PAR LA CRÉATRICE (PRIORITÉ ABSOLUE) :
+-> MANDATORY: Every proposition MUST reflect this intention, scene, or topic!
+-> STRICT FORBIDDEN RULE: NEVER copy-paste the raw description text as the beginning of the message! NEVER make multiple propositions start with the same words! Each proposition must address a different angle, using 100% unique opening words!`
+      : `\nCONTEXTE PRÉCIS FOURNI PAR LA CRÉATRICE :
 "${mediaContext.trim()}"
--> OBLIGATION STRICTE : Les 6 propositions DOIVENT impérativement faire référence à cette scène, ce moment et cette ambiance !
--> INTERDICTION FORMELLE DE COPIER-COLLER LA DESCRIPTION EN PRÉFIXE : Il est STRICTEMENT INTERDIT de coller le texte descriptif tel quel en tête de phrase ! Il est STRICTEMENT INTERDIT de faire commencer 2 propositions par les mêmes mots ! Chaque proposition doit aborder la scène sous un angle sensoriel différent (l'ambiance/la lumière dans l'une, une question complice dans l'autre, un aveu spontané, le cadrage caméra), avec des premiers mots 100% DIFFÉRENTS pour chaque proposition !`;
+-> OBLIGATION STRICTE : Les 6 propositions DOIVENT impérativement faire écho à cette intention, ce sujet et cette ambiance !
+-> INTERDICTION FORMELLE DE COPIER-COLLER LA DESCRIPTION EN PRÉFIXE : Il est STRICTEMENT INTERDIT de coller le texte descriptif tel quel en tête de phrase ! Il est STRICTEMENT INTERDIT de faire commencer 2 propositions par les mêmes mots ! Chaque proposition doit aborder le sujet sous un angle différent, avec des premiers mots 100% DIFFÉRENTS pour chaque proposition !`;
   }
 
   // Anti-repetition blacklist
@@ -395,10 +413,12 @@ NON-NEGOTIABLE COMMUNICATION RULES:
    - Prefer confident statements, spontaneous impulses, provocative banter, or vivid sensory details over lazy questions ("what are you doing?").
 4. 100% HOME REALISM:
    - Realistic home setting: bed, couch, bathroom mirror, dressing room, kitchen.
-5. ABSOLUTE DIVERSITY & NOVELTY:
+5. JSON OUTPUT FORMAT:
+   - You MUST respond with a valid JSON object matching the requested schema.
+6. ABSOLUTE DIVERSITY & NOVELTY:
    - NEVER repeat the same grammar pattern. Each of the 6 proposals must have its own unique soul and rhythm.
    - BANNED CLICHÉS: ${bannedTropes}.
-6. REAL-TIME CLOCK CONTEXT:
+7. REAL-TIME CLOCK CONTEXT:
    - Local fan time is ${resolvedTime.timeString} (${resolvedTime.periodLabelUs}).
    - Atmosphere: ${resolvedTime.contextualAtmosphereUs}.
    - Forbidden words: ${resolvedTime.forbiddenWordsUs.join(', ')}.`
@@ -419,7 +439,9 @@ RÈGLES D'OR DE RÉDACTION :
 4. DIVERSITÉ RADICALE & NON-RÉPÉTITION :
    - AUCUNE des 6 propositions ne doit se ressembler. Chaque proposition doit explorer une intention, une structure grammaticale et un rythme totalement différents.
    - CLICHÉS INTERDITS : ${bannedTropes}.
-5. COHÉRENCE HORAIRE STRICTE :
+5. FORMAT DE SORTIE JSON OBLIGATOIRE :
+   - Tu DOIS impérativement répondre avec un objet JSON valide respectant le schéma demandé.
+6. COHÉRENCE HORAIRE STRICTE :
    - Heure réelle actuelle du fan : ${resolvedTime.timeString} (${resolvedTime.periodLabelFr}).
    - Ambiance requise : ${resolvedTime.contextualAtmosphereFr}.
    - Mots formellement interdits à cette heure : ${resolvedTime.forbiddenWordsFr.join(', ')}.`;
@@ -448,6 +470,7 @@ PARAMETERS TO THOROUGHLY INTEGRATE:
 - ${audienceDirective}
 - ${hotLevelDirective}
 - Media Type: ${mediaType} ${isPaid && priceSuggestion ? `(Suggested PPV: $${priceSuggestion})` : ''}
+${mediaTypeDirective}
 ${mediaContextDirective}
 ${antiRepetitionDirective}
 
@@ -544,6 +567,7 @@ PARAMÈTRES DU PUSH À APPLIQUER EN PROFONDEUR :
 - ${audienceDirective}
 - ${hotLevelDirective}
 - Média joint : ${mediaType} ${isPaid && priceSuggestion ? `(Prix PPV suggéré : ${priceSuggestion}€)` : ''}
+${mediaTypeDirective}
 ${mediaContextDirective}
 ${antiRepetitionDirective}
 

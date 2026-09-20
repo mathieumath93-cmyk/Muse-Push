@@ -360,7 +360,7 @@ app.post('/api/generate-push', async (req, res) => {
     // 1. GROQ CLOUD (Ultra-Fast LPU Engine)
     if (activeProvider === 'groq') {
       const groqKey = (groqConfig?.apiKey || process.env.GROQ_API_KEY || '').trim();
-      const groqModel = groqConfig?.model || 'llama-3.3-70b-versatile';
+      let groqModel = groqConfig?.model || 'llama-3.3-70b-versatile';
       providerDiagnostic.model = groqModel;
 
       if (!groqKey) {
@@ -370,23 +370,43 @@ app.post('/api/generate-push', async (req, res) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 12000);
         try {
-          const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            signal: controller.signal,
-            headers: {
-              'Authorization': `Bearer ${groqKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: groqModel,
+          const makeGroqCall = async (modelToUse: string, useJsonFormat: boolean = true) => {
+            const bodyPayload: any = {
+              model: modelToUse,
               messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
               ],
-              temperature: llmTemperature,
-              response_format: { type: 'json_object' }
-            })
-          });
+              temperature: llmTemperature
+            };
+            if (useJsonFormat) {
+              bodyPayload.response_format = { type: 'json_object' };
+            }
+            return await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              signal: controller.signal,
+              headers: {
+                'Authorization': `Bearer ${groqKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(bodyPayload)
+            });
+          };
+
+          let resp = await makeGroqCall(groqModel, true);
+
+          // Auto-recovery 1: If 404 (model deprecated or not found), auto-fallback to llama-3.3-70b-versatile
+          if (resp.status === 404 && groqModel !== 'llama-3.3-70b-versatile') {
+            groqModel = 'llama-3.3-70b-versatile';
+            providerDiagnostic.model = groqModel;
+            resp = await makeGroqCall(groqModel, true);
+          }
+
+          // Auto-recovery 2: If 400 (bad response_format), retry without json_object
+          if (resp.status === 400) {
+            resp = await makeGroqCall(groqModel, false);
+          }
+
           clearTimeout(timeoutId);
           providerDiagnostic.latencyMs = Date.now() - groqStartTime;
 
@@ -438,7 +458,7 @@ app.post('/api/generate-push', async (req, res) => {
     // 2. MISTRAL AI (Top French Copywriting)
     else if (activeProvider === 'mistral') {
       const mistralKey = (mistralConfig?.apiKey || process.env.MISTRAL_API_KEY || '').trim();
-      const mistralModel = mistralConfig?.model || 'mistral-small-latest';
+      let mistralModel = mistralConfig?.model || 'mistral-small-latest';
       providerDiagnostic.model = mistralModel;
 
       if (!mistralKey) {
@@ -448,23 +468,43 @@ app.post('/api/generate-push', async (req, res) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 12000);
         try {
-          const resp = await fetch('https://api.mistral.ai/v1/chat/completions', {
-            method: 'POST',
-            signal: controller.signal,
-            headers: {
-              'Authorization': `Bearer ${mistralKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: mistralModel,
+          const makeMistralCall = async (modelToUse: string, useJsonFormat: boolean = true) => {
+            const bodyPayload: any = {
+              model: modelToUse,
               messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
               ],
-              temperature: llmTemperature,
-              response_format: { type: 'json_object' }
-            })
-          });
+              temperature: llmTemperature
+            };
+            if (useJsonFormat) {
+              bodyPayload.response_format = { type: 'json_object' };
+            }
+            return await fetch('https://api.mistral.ai/v1/chat/completions', {
+              method: 'POST',
+              signal: controller.signal,
+              headers: {
+                'Authorization': `Bearer ${mistralKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(bodyPayload)
+            });
+          };
+
+          let resp = await makeMistralCall(mistralModel, true);
+
+          // Auto-recovery 1: If 404 (model deprecated), auto-fallback to mistral-small-latest
+          if (resp.status === 404 && mistralModel !== 'mistral-small-latest') {
+            mistralModel = 'mistral-small-latest';
+            providerDiagnostic.model = mistralModel;
+            resp = await makeMistralCall(mistralModel, true);
+          }
+
+          // Auto-recovery 2: If 400 (bad response_format), retry without json_object
+          if (resp.status === 400) {
+            resp = await makeMistralCall(mistralModel, false);
+          }
+
           clearTimeout(timeoutId);
           providerDiagnostic.latencyMs = Date.now() - mistralStartTime;
 
